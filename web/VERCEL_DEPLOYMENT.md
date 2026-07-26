@@ -11,7 +11,7 @@ Set the following environment variables in your Vercel Project Settings (**Setti
 | Variable Name | Example Value | Description |
 |---|---|---|
 | `NEXT_PUBLIC_SITE_URL` | `https://loomora.app` | Canonical site URL for SEO & OpenGraph |
-| `NEXT_PUBLIC_APK_URL` | `https://loomora.app/downloads/app-release-unsigned.apk` | Direct APK download link |
+| `NEXT_PUBLIC_APK_URL` | `/api/download` | Direct APK download link (served via Next.js route handler or external URL) |
 | `NEXT_PUBLIC_PLAY_URL` | `https://play.google.com/store/apps/details?id=com.loomora` | Google Play Store URL |
 | `NEXT_PUBLIC_LATEST_VERSION` | `1.0.0` | Production release version |
 | `NEXT_PUBLIC_APK_SIZE` | `14.2 MB` | Compiled APK file size |

@@ -1,5 +1,5 @@
 export const env = {
-  apkUrl: process.env.NEXT_PUBLIC_APK_URL || '/downloads/app-release-unsigned.apk',
+  apkUrl: process.env.NEXT_PUBLIC_APK_URL || '/api/download',
   playUrl: process.env.NEXT_PUBLIC_PLAY_URL || 'https://play.google.com/store/apps/details?id=com.loomora',
   latestVersion: process.env.NEXT_PUBLIC_LATEST_VERSION || '1.0.0',
   apkSize: process.env.NEXT_PUBLIC_APK_SIZE || '14.2 MB',

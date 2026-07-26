@@ -2,7 +2,8 @@ import React from 'react';
 import { getPostBySlug, getAllPosts } from '@/lib/blog';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Clock, Tag } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Tag, Download, ShieldCheck } from 'lucide-react';
+import { env } from '@/lib/env';
 import type { Metadata } from 'next';
 
 export async function generateStaticParams() {
@@ -94,6 +95,30 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
           }
           return <p key={idx}>{paragraph}</p>;
         })}
+      </div>
+
+      {/* Download CTA Banner */}
+      <div className="glass p-8 rounded-3xl border border-loomora-primary/40 space-y-4 shadow-xl text-center sm:text-left sm:flex sm:items-center sm:justify-between sm:space-y-0 sm:space-x-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
+            <ShieldCheck className="w-4 h-4" />
+            <span>Verified Android Release</span>
+          </div>
+          <h3 className="text-xl font-bold text-white light:text-slate-900">
+            Try Loomora on Android Today
+          </h3>
+          <p className="text-xs text-slate-400 max-w-md">
+            Local-first audio recording, non-destructive editing, and AI meeting notes with total privacy.
+          </p>
+        </div>
+        <a
+          href={env.apkUrl}
+          download
+          className="inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-full bg-loomora-primary text-white font-bold text-xs hover:bg-loomora-primary/90 transition-all shadow-lg shrink-0"
+        >
+          <Download className="w-4 h-4" />
+          <span>Tải APK ({env.apkSize})</span>
+        </a>
       </div>
 
       {/* Tags */}
