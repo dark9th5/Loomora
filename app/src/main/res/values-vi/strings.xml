@@ -1,0 +1,83 @@
+<resources>
+    <!-- App & Brand -->
+    <string name="app_name">Loomora</string>
+    <string name="app_tagline">Ghi Âm Thông Minh &amp; Ghi Chú AI</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Trang chủ</string>
+    <string name="nav_recorder">Ghi âm</string>
+    <string name="nav_library">Thư viện</string>
+    <string name="nav_settings">Cài đặt</string>
+    <string name="nav_subscription">Gói Pro &amp; Dùng thử</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Chào mừng đến với Loomora</string>
+    <string name="onboarding_welcome_desc">Ghi âm cuộc họp, bài giảng và ghi chú giọng nói rõ ràng. Biến ý tưởng thành thông tin hữu ích.</string>
+    <string name="onboarding_local_first_title">Ưu tiên dữ liệu cục bộ &amp; Bảo mật</string>
+    <string name="onboarding_local_first_desc">Bản ghi của bạn lưu an toàn trên thiết bị. Không cần tài khoản hay Internet để ghi âm, nghe lại và quản lý file.</string>
+    <string name="onboarding_permission_title">Quyền truy cập Micro</string>
+    <string name="onboarding_permission_desc">Loomora cần quyền sử dụng micro để ghi âm rõ ràng khi bạn bắt đầu một bản ghi mới.</string>
+    <string name="onboarding_btn_next">Tiếp theo</string>
+    <string name="onboarding_btn_get_started">Bắt đầu ngay</string>
+
+    <!-- Home Screen -->
+    <string name="home_title">Loomora</string>
+    <string name="home_new_recording">Bản ghi mới</string>
+    <string name="home_quick_modes">Chế độ ghi nhanh</string>
+    <string name="home_mode_meeting">Cuộc họp</string>
+    <string name="home_mode_interview">Phỏng vấn</string>
+    <string name="home_mode_lecture">Bài giảng</string>
+    <string name="home_mode_voicenote">Ghi chú nhanh</string>
+    <string name="home_recent_recordings">Bản ghi gần đây</string>
+    <string name="home_empty_title">Chưa có bản ghi nào</string>
+    <string name="home_empty_desc">Nhấn nút ghi âm bên dưới để tạo ghi chú âm thanh đầu tiên của bạn.</string>
+    <string name="home_start_record_cta">Bắt đầu ghi âm</string>
+
+    <!-- Library Screen -->
+    <string name="library_title">Thư viện</string>
+    <string name="library_search_hint">Tìm kiếm bản ghi hoặc thẻ…</string>
+    <string name="library_empty_title">Thư viện đang trống</string>
+    <string name="library_empty_desc">Các bản ghi âm đã lưu sẽ xuất hiện tại đây.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Cài đặt</string>
+    <string name="settings_section_appearance">Giao diện</string>
+    <string name="settings_theme_title">Chủ đề giao diện</string>
+    <string name="settings_theme_system">Mặc định hệ thống</string>
+    <string name="settings_theme_light">Sáng</string>
+    <string name="settings_theme_dark">Tối</string>
+
+    <string name="settings_section_language">Ngôn ngữ</string>
+    <string name="settings_language_title">Ngôn ngữ ứng dụng</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_vietnamese">Tiếng Việt</string>
+
+    <string name="settings_section_recording">Chất lượng ghi âm</string>
+    <string name="settings_quality_title">Cấu hình chất lượng âm thanh</string>
+    <string name="settings_quality_standard">Tiêu chuẩn (Cân bằng)</string>
+    <string name="settings_quality_high">Chất lượng cao</string>
+    <string name="settings_quality_saver">Tiết kiệm bộ nhớ</string>
+
+    <string name="settings_section_privacy">Bảo mật &amp; Dữ liệu</string>
+    <string name="settings_privacy_guarantee">Quyền sở hữu cục bộ</string>
+    <string name="settings_privacy_guarantee_desc">File âm thanh không bao giờ rời khỏi thiết bị nếu chưa có sự đồng ý của bạn.</string>
+
+    <string name="settings_section_subscription">Gói dịch vụ &amp; Dùng thử</string>
+    <string name="settings_pro_status">Tài khoản Khách Miễn phí</string>
+    <string name="settings_upgrade_pro">Xem Gói Pro &amp; Dùng thử</string>
+
+    <string name="settings_section_about">Thông tin</string>
+    <string name="settings_version_title">Phiên bản</string>
+
+    <!-- Subscription & Paywall -->
+    <string name="paywall_title">Loomora Pro</string>
+    <string name="paywall_subtitle">Mở khóa tính năng lọc âm nâng cao, chuyển âm thanh thành văn bản và phân tích thông minh.</string>
+    <string name="paywall_trial_info">Bạn còn %1$d lượt dùng thử miễn phí.</string>
+    <string name="paywall_free_note">Tính năng ghi âm, nghe lại và quản lý file cục bộ luôn miễn phí 100% và dùng được ngoại tuyến mãi mãi.</string>
+
+    <!-- General Actions & States -->
+    <string name="action_cancel">Hủy</string>
+    <string name="action_save">Lưu</string>
+    <string name="action_retry">Thử lại</string>
+    <string name="offline_banner_text">Bạn đang ngoại tuyến. Ghi âm và phát lại cục bộ vẫn hoạt động bình thường.</string>
+</resources>

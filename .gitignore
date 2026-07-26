@@ -1,0 +1,49 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the Application Support module
+app/libs/arm64-v8a/
+app/libs/armeabi-v7a/
+app/libs/x86/
+app/libs/x86_64/
+
+# Gradle files
+.gradle/
+build/
+*/build/
+*/*/build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log Files
+*.log
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+.shelf/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+web/.vercel/
+web/*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db

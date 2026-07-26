@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loomora — Smart Voice Recorder & AI Notes</title>
+    <style>
+        :root {
+            --primary: #6750A4;
+            --on-primary: #FFFFFF;
+            --background: #0F0E13;
+            --surface: #1C1B20;
+            --on-surface: #E6E1E5;
+            --text-muted: #CAC4D0;
+            --accent: #D0BCFF;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background);
+            color: var(--on-surface);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        header {
+            padding: 2rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        nav a {
+            color: var(--on-surface);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 5rem 1rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #FFFFFF;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            padding: 0.8rem 2rem;
+            border-radius: 28px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1f));
+            gap: 2rem;
+            max-width: 1100px;
+            margin: 4rem auto;
+            padding: 0 1rem;
+        }
+
+        .feature-card {
+            background-color: var(--surface);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .feature-card h3 {
+            color: var(--accent);
+            margin-top: 0;
+        }
+
+        .pricing {
+            max-width: 900px;
+            margin: 4rem auto;
+            padding: 0 1rem;
+            text-align: center;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+            background-color: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .comparison-table th, .comparison-table td {
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: left;
+        }
+
+        .comparison-table th {
+            background-color: rgba(103, 80, 164, 0.3);
+            color: var(--accent);
+        }
+
+        footer {
+            text-align: center;
+            padding: 3rem 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">Loomora</div>
+        <nav>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#privacy">Privacy</a>
+            <a href="https://loomora.app/pro" class="btn" style="padding: 0.4rem 1.2rem;">Get Pro</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <h1>Smart Voice Recording &amp; AI Notes</h1>
+        <p>Record conversations, lectures, and voice notes cleanly. Turn spoken ideas into structured summaries, key points, and action items with absolute privacy.</p>
+        <a href="#download" class="btn">Download Free App (Android)</a>
+    </section>
+
+    <section class="features" id="features">
+        <div class="feature-card">
+            <h3>🔒 Local First &amp; Offline</h3>
+            <p>Your audio files never leave your device without explicit consent. 100% free and unlimited local recording and playback forever.</p>
+        </div>
+        <div class="feature-card">
+            <h3>✂️ Non-Destructive Audio Editor</h3>
+            <p>Trim, delete sections, and apply speech clarity filters without altering or overwriting your original raw recording.</p>
+        </div>
+        <div class="feature-card">
+            <h3>✨ AI Transcript &amp; Smart Insights</h3>
+            <p>Generate timestamped transcripts, structured summaries, key points, decisions, and action items effortlessly.</p>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <h2>Transparent Plans</h2>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Free Guest Plan</th>
+                    <th>Loomora Pro</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Local Recording &amp; Playback</td>
+                    <td>Unlimited (100% Free)</td>
+                    <td>Unlimited</td>
+                </tr>
+                <tr>
+                    <td>Non-Destructive Audio Editor</td>
+                    <td>Yes</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td>AI Cloud Transcriptions</td>
+                    <td>3 Trial Uses</td>
+                    <td>Unlimited</td>
+                </tr>
+                <tr>
+                    <td>Smart Summaries &amp; Action Items</td>
+                    <td>3 Trial Uses</td>
+                    <td>Unlimited</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <footer id="privacy">
+        <p>&copy; 2026 Loomora Audio Inc. All rights reserved. | <a href="https://loomora.app/privacy" style="color: var(--accent);">Privacy Policy</a> | <a href="https://loomora.app/terms" style="color: var(--accent);">Terms of Service</a></p>
+    </footer>
+</body>
+</html>
