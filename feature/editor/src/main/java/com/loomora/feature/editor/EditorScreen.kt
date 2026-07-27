@@ -1,5 +1,6 @@
 package com.loomora.feature.editor
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.Button
@@ -25,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -32,16 +35,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.loomora.core.audio.waveform.WaveformLoadState
 import com.loomora.core.designsystem.component.AudioWaveform
 import com.loomora.core.designsystem.component.ErrorState
 import com.loomora.core.designsystem.component.LoomoraTopAppBar
@@ -53,7 +59,14 @@ fun EditorRoute(
     modifier: Modifier = Modifier,
     viewModel: EditorViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.shareIntent) {
+        val shareIntent = uiState.shareIntent ?: return@LaunchedEffect
+        context.startActivity(Intent.createChooser(shareIntent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        viewModel.consumeShareIntent()
+    }
 
     EditorScreen(
         uiState = uiState,
@@ -65,6 +78,8 @@ fun EditorRoute(
         onUndo = viewModel::undo,
         onRedo = viewModel::redo,
         onExport = viewModel::exportRecording,
+        onCancelExport = viewModel::cancelExport,
+        onShareExport = viewModel::shareLastExportedRecording,
         modifier = modifier
     )
 }
@@ -80,6 +95,8 @@ fun EditorScreen(
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onExport: () -> Unit,
+    onCancelExport: () -> Unit,
+    onShareExport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -135,6 +152,48 @@ fun EditorScreen(
                         )
                     }
 
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Edit Preview",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Estimated output duration: ${uiState.previewDurationMs} ms",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (uiState.previewSegments.isEmpty()) {
+                                    Text(
+                                        text = "Preview uses the full original recording until you apply edits.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    uiState.previewSegments.forEachIndexed { index, segment ->
+                                        Text(
+                                            text = "Segment ${index + 1}: ${segment.startMs} - ${segment.endMs} ms",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (uiState.validationIssue != null) {
+                                    Text(
+                                        text = "Current recipe needs adjustment before export.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // Waveform Timeline View
                     item {
                         Card(
@@ -148,9 +207,23 @@ fun EditorScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
-                                AudioWaveform(
-                                    amplitudes = listOf(0.2f, 0.4f, 0.7f, 0.9f, 0.5f, 0.3f, 0.8f, 0.6f, 0.2f, 0.4f, 0.6f)
-                                )
+                                when (val waveform = uiState.waveform) {
+                                    WaveformLoadState.Idle,
+                                    WaveformLoadState.Loading -> {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    }
+
+                                    is WaveformLoadState.Error -> {
+                                        ErrorState(
+                                            title = "Waveform unavailable",
+                                            message = "Loomora could not load the saved waveform for this recording."
+                                        )
+                                    }
+
+                                    is WaveformLoadState.Ready -> {
+                                        AudioWaveform(amplitudes = waveform.waveform.bins)
+                                    }
+                                }
                             }
                         }
                     }
@@ -284,6 +357,21 @@ fun EditorScreen(
                             }
                         }
 
+                        if (uiState.isExporting && uiState.exportProgress != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { uiState.exportProgress / 100f },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = onCancelExport,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = "Cancel Export")
+                            }
+                        }
+
                         if (uiState.exportSuccessMessage != null) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -292,6 +380,18 @@ fun EditorScreen(
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+
+                        if (uiState.lastExportedRecording != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = onShareExport,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(imageVector = Icons.Default.Share, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "Share Exported Recording")
+                            }
                         }
 
                         if (uiState.errorMessage != null) {

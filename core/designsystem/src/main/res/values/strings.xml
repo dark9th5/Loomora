@@ -38,6 +38,35 @@
     <string name="library_search_hint">Search recordings or tags…</string>
     <string name="library_empty_title">Library is empty</string>
     <string name="library_empty_desc">Your saved audio notes will appear here.</string>
+    <string name="library_filter_favorites">Favorites</string>
+    <string name="library_filter_trash">Trash</string>
+    <string name="library_storage_title">Local storage usage</string>
+    <string name="library_storage_low_space_warning">Low free storage may interrupt recording or export.</string>
+    <string name="library_storage_recordings">Recordings: %1$s</string>
+    <string name="library_storage_exports">Exports: %1$s</string>
+    <string name="library_storage_temp">Temp: %1$s</string>
+    <string name="library_storage_models">Models: %1$s</string>
+    <string name="library_storage_free">Free: %1$s</string>
+    <string name="library_trash_deleted_on">Deleted on %1$s</string>
+    <string name="library_trash_restore">Restore</string>
+    <string name="library_trash_delete_forever">Delete forever</string>
+    <string name="library_recovery_section_title">Recovery attention needed</string>
+    <string name="library_recovery_section_message">These recordings were preserved after an interrupted or invalid save. Keep them for diagnostics or delete them explicitly.</string>
+    <string name="library_recovery_open">Open</string>
+    <string name="library_recovery_keep">Keep</string>
+    <string name="library_recovery_delete">Delete</string>
+    <string name="library_recovery_delete_confirm_title">Delete recovery file?</string>
+    <string name="library_recovery_delete_confirm_message">Delete \"%1$s\" and its preserved local file permanently?</string>
+    <string name="library_recovery_issue_missing_title">Missing file</string>
+    <string name="library_recovery_issue_missing_message">The recording row exists, but the original audio file is no longer on disk.</string>
+    <string name="library_recovery_issue_zero_byte_title">Zero-byte file</string>
+    <string name="library_recovery_issue_zero_byte_message">The recording file was created but contains no playable audio data.</string>
+    <string name="library_recovery_issue_corrupt_title">Corrupt or unplayable</string>
+    <string name="library_recovery_issue_corrupt_message">The preserved file could not be validated as playable audio.</string>
+    <string name="library_recovery_issue_orphan_title">Orphan file</string>
+    <string name="library_recovery_issue_orphan_message">A recording file was found without a matching Room row, so it was preserved for inspection.</string>
+    <string name="library_recovery_issue_generic_title">Recovery issue</string>
+    <string name="library_recovery_issue_generic_message">This recording needs manual review before it can be trusted.</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
@@ -72,12 +101,41 @@
     <!-- Subscription & Paywall -->
     <string name="paywall_title">Loomora Pro</string>
     <string name="paywall_subtitle">Unlock advanced audio enhancement, AI transcription, and smart insights.</string>
-    <string name="paywall_trial_info">You have %1$d free trial uses remaining.</string>
-    <string name="paywall_free_note">Core recording, playback, and local file management remain 100% free and offline forever.</string>
+    <plurals name="paywall_trial_info">
+        <item quantity="one">free trial use remaining</item>
+        <item quantity="other">free trial uses remaining</item>
+    </plurals>
+    <string name="paywall_free_note">Core recording, playback, and local file management remain 100%% free and offline forever.</string>
 
     <!-- General Actions & States -->
     <string name="action_cancel">Cancel</string>
     <string name="action_save">Save</string>
     <string name="action_retry">Retry</string>
+    <string name="marker_default_label">Marker #%1$d</string>
     <string name="offline_banner_text">You are offline. Local recording and playback work seamlessly.</string>
+
+    <!-- Recorder -->
+    <string name="recorder_default_title">New Recording</string>
+    <string name="recorder_permission_grant">Grant Microphone Permission</string>
+    <string name="recorder_status_ready">Ready</string>
+    <string name="recorder_status_preparing">Preparing...</string>
+    <string name="recorder_status_recording">Recording</string>
+    <string name="recorder_status_paused">Paused</string>
+    <string name="recorder_status_finalizing">Finalizing...</string>
+    <string name="recorder_status_saving">Saving...</string>
+    <string name="recorder_status_saved">Saved</string>
+    <string name="recorder_status_error">Error</string>
+    <string name="recorder_action_record">Record</string>
+    <string name="recorder_action_stop_save">Stop &amp; Save</string>
+    <string name="recorder_cd_add_marker">Add marker</string>
+    <string name="recorder_cd_pause">Pause recording</string>
+    <string name="recorder_cd_resume">Resume recording</string>
+    <string name="recorder_cd_stop">Stop recording</string>
+    <string name="recorder_stop_dialog_title">Stop &amp; Save Recording?</string>
+    <string name="recorder_stop_dialog_message">Your recording session will be finalized and saved safely to your library.</string>
+    <string name="recorder_error_start_failed">Could not start recording. Check microphone access and try again.</string>
+    <string name="recorder_error_pause_failed">Could not pause recording. Your current recording is still protected.</string>
+    <string name="recorder_error_resume_failed">Could not resume recording. Your current recording is still protected.</string>
+    <string name="recorder_error_finalize_failed">Recording file could not be finalized. The original capture remains protected when possible.</string>
+    <string name="recorder_error_save_failed">Recording was captured but could not be saved to the library. Stay here and try again.</string>
 </resources>

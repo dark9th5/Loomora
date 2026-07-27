@@ -1,5 +1,7 @@
 package com.loomora.feature.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -24,10 +26,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -37,6 +41,7 @@ import com.loomora.core.datastore.DarkThemeConfig
 import com.loomora.core.designsystem.R
 import com.loomora.core.designsystem.component.LoomoraTopAppBar
 import com.loomora.core.designsystem.component.SettingRow
+import com.loomora.core.offlineai.ModelInstallState
 
 @Composable
 fun SettingsRoute(
@@ -46,11 +51,20 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val modelImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importModel(uri)
+        }
+    }
 
     SettingsScreen(
         uiState = uiState,
         onSetDarkThemeConfig = viewModel::setDarkThemeConfig,
         onSetLanguageCode = viewModel::setLanguageCode,
+        onImportModel = { modelImportLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
+        onRemoveModel = viewModel::removeModel,
         onNavigateToSubscription = onNavigateToSubscription,
         onNavigateBack = onNavigateBack,
         modifier = modifier
@@ -62,6 +76,8 @@ fun SettingsScreen(
     uiState: SettingsUiState,
     onSetDarkThemeConfig: (DarkThemeConfig) -> Unit,
     onSetLanguageCode: (String) -> Unit,
+    onImportModel: () -> Unit,
+    onRemoveModel: (String) -> Unit,
     onNavigateToSubscription: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -154,6 +170,90 @@ fun SettingsScreen(
                 subtitle = stringResource(id = R.string.settings_privacy_guarantee_desc),
                 icon = Icons.Default.Shield
             )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            SectionHeader(title = "Offline AI Models")
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Model Manager",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Import and verify local ASR/insight models without network processing.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = onImportModel) {
+                            Text(text = "Import")
+                        }
+                    }
+
+                    uiState.modelImportError?.let { error ->
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    uiState.offlineModels.forEach { model ->
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                        Text(
+                            text = model.manifest.id,
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${model.manifest.capability.name} • ${model.state.name}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "License: ${model.manifest.licenseName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (model.manifest.sourceUrl != null) {
+                            Text(
+                                text = "Source: ${model.manifest.sourceUrl}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        model.errorCode?.let { errorCode ->
+                            Text(
+                                text = "Status detail: $errorCode",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (model.state != ModelInstallState.NOT_INSTALLED && model.state != ModelInstallState.IMPORTING && model.state != ModelInstallState.VERIFYING) {
+                            TextButton(
+                                onClick = { onRemoveModel(model.manifest.id) },
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Text(text = "Remove")
+                            }
+                        }
+                    }
+                }
+            }
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 

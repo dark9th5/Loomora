@@ -72,12 +72,16 @@
     <!-- Subscription & Paywall -->
     <string name="paywall_title">Loomora Pro</string>
     <string name="paywall_subtitle">Unlock advanced audio enhancement, AI transcription, and smart insights.</string>
-    <string name="paywall_trial_info">You have %1$d free trial uses remaining.</string>
-    <string name="paywall_free_note">Core recording, playback, and local file management remain 100% free and offline forever.</string>
+    <plurals name="paywall_trial_info">
+        <item quantity="one">free trial use remaining</item>
+        <item quantity="other">free trial uses remaining</item>
+    </plurals>
+    <string name="paywall_free_note">Core recording, playback, and local file management remain 100%% free and offline forever.</string>
 
     <!-- General Actions & States -->
     <string name="action_cancel">Cancel</string>
     <string name="action_save">Save</string>
     <string name="action_retry">Retry</string>
+    <string name="marker_default_label">Marker #%1$d</string>
     <string name="offline_banner_text">You are offline. Local recording and playback work seamlessly.</string>
 </resources>

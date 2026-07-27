@@ -1,0 +1,12 @@
+<resources>
+    <string name="audio_recording_default_title">Ban ghi moi</string>
+    <string name="audio_recording_recovery_title">Ban ghi %1$s</string>
+    <string name="audio_notification_channel_name">Kenh ghi am Loomora</string>
+    <string name="audio_notification_status_recording">Dang ghi</string>
+    <string name="audio_notification_status_paused">Da tam dung</string>
+    <string name="audio_notification_action_pause">Tam dung</string>
+    <string name="audio_notification_action_resume">Tiep tuc</string>
+    <string name="audio_notification_action_stop">Dung</string>
+    <string name="audio_notification_title">Loomora - %1$s</string>
+    <string name="audio_notification_duration">Thoi luong: %1$s</string>
+</resources>

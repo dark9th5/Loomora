@@ -19,8 +19,8 @@ import androidx.compose.ui.unit.dp
 fun ErrorState(
     title: String,
     message: String,
-    safeText: String? = null,
     modifier: Modifier = Modifier,
+    safeText: String? = null,
     retryText: String? = null,
     onRetryClick: (() -> Unit)? = null
 ) {

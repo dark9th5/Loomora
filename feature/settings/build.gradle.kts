@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:datastore"))
+    implementation(project(":core:offlineai"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

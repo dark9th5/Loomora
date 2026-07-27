@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,7 @@ class AudioPlayerEngine @Inject constructor(
 
     private var exoPlayer: ExoPlayer? = null
     private var updateJob: Job? = null
-    private val playerScope = CoroutineScope(Dispatchers.Main + Job())
+    private val playerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var currentSpeed: Float = 1.0f
 
@@ -70,7 +71,7 @@ class AudioPlayerEngine @Inject constructor(
         val file = File(filePath)
 
         if (!file.exists() || !file.isFile || file.length() == 0L) {
-            _playerState.value = PlayerState.Error("Audio file is missing or corrupted: $filePath")
+            _playerState.value = PlayerState.Error("AUDIO_FILE_UNAVAILABLE")
             return
         }
 
@@ -127,7 +128,17 @@ class AudioPlayerEngine @Inject constructor(
 
     fun stop() {
         updateJob?.cancel()
+        updateJob = null
         exoPlayer?.stop()
+        _playerState.value = PlayerState.Idle
+        _currentRecordingId.value = null
+    }
+
+    fun release() {
+        updateJob?.cancel()
+        updateJob = null
+        exoPlayer?.release()
+        exoPlayer = null
         _playerState.value = PlayerState.Idle
         _currentRecordingId.value = null
     }

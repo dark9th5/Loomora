@@ -34,7 +34,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:audio"))
     implementation(project(":core:database"))
-    implementation(project(":core:network"))
+    implementation(project(":core:offlineai"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -48,5 +48,9 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.coroutines.test)
+    testImplementation(libs.kotlinx.serialization.json)
     testImplementation(project(":core:testing"))
 }

@@ -2,6 +2,7 @@ package com.loomora.feature.recorder
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.loomora.core.audio.model.RecorderErrorType
 import com.loomora.core.audio.model.RecorderState
 import com.loomora.core.designsystem.R
 import com.loomora.core.designsystem.component.AudioWaveform
@@ -68,13 +70,19 @@ fun RecorderRoute(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    LaunchedEffect(uiState.state) {
+        if (uiState.state is RecorderState.Saved) {
+            onNavigateBack()
+        }
+    }
+
     RecorderScreen(
         uiState = uiState,
         onStartRecording = { title -> viewModel.startRecording(context, title) },
-        onPauseRecording = viewModel::pauseRecording,
-        onResumeRecording = viewModel::resumeRecording,
-        onStopRecording = viewModel::stopRecording,
-        onAddMarker = viewModel::addMarker,
+        onPauseRecording = { viewModel.pauseRecording(context) },
+        onResumeRecording = { viewModel.resumeRecording(context) },
+        onStopRecording = { viewModel.stopRecording(context) },
+        onAddMarker = { viewModel.addMarker(context) },
         onNavigateBack = onNavigateBack,
         modifier = modifier
     )
@@ -105,13 +113,16 @@ fun RecorderScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasMicPermission = isGranted
-        if (isGranted) {
-            onStartRecording("New Recording")
-        }
     }
 
     var showStopConfirmation by remember { mutableStateOf(false) }
     val amplitudeHistory = remember { mutableStateListOf<Float>() }
+    val hasActiveRecording = uiState.state is RecorderState.Recording || uiState.state is RecorderState.Paused
+    val defaultRecordingTitle = stringResource(id = R.string.recorder_default_title)
+
+    BackHandler(enabled = hasActiveRecording) {
+        showStopConfirmation = true
+    }
 
     LaunchedEffect(uiState.amplitude) {
         if (uiState.state is RecorderState.Recording) {
@@ -122,18 +133,12 @@ fun RecorderScreen(
         }
     }
 
-    LaunchedEffect(hasMicPermission) {
-        if (hasMicPermission && uiState.state is RecorderState.Idle) {
-            onStartRecording("New Recording")
-        }
-    }
-
     Scaffold(
         topBar = {
             LoomoraTopAppBar(
                 title = stringResource(id = R.string.nav_recorder),
                 onBackClick = {
-                    if (uiState.state is RecorderState.Recording || uiState.state is RecorderState.Paused) {
+                    if (hasActiveRecording) {
                         showStopConfirmation = true
                     } else {
                         onNavigateBack()
@@ -184,7 +189,7 @@ fun RecorderScreen(
                     Button(
                         onClick = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
                     ) {
-                        Text(text = "Grant Microphone Permission")
+                        Text(text = stringResource(id = R.string.recorder_permission_grant))
                     }
                 }
             } else {
@@ -197,18 +202,21 @@ fun RecorderScreen(
                         is RecorderState.Preparing -> StatusPillType.PREPARING
                         is RecorderState.Recording -> StatusPillType.RECORDING
                         is RecorderState.Paused -> StatusPillType.PAUSED
-                        is RecorderState.Finalizing -> StatusPillType.FINALIZING
+                        is RecorderState.Finalizing,
+                        is RecorderState.Saving -> StatusPillType.FINALIZING
                         else -> StatusPillType.PREPARING
                     }
 
                     val statusLabel = when (uiState.state) {
-                        is RecorderState.Preparing -> "Preparing..."
-                        is RecorderState.Recording -> "Recording"
-                        is RecorderState.Paused -> "Paused"
-                        is RecorderState.Finalizing -> "Finalizing..."
-                        is RecorderState.Completed -> "Saved"
-                        is RecorderState.Error -> "Error"
-                        else -> "Idle"
+                        is RecorderState.Idle,
+                        is RecorderState.Ready -> stringResource(id = R.string.recorder_status_ready)
+                        is RecorderState.Preparing -> stringResource(id = R.string.recorder_status_preparing)
+                        is RecorderState.Recording -> stringResource(id = R.string.recorder_status_recording)
+                        is RecorderState.Paused -> stringResource(id = R.string.recorder_status_paused)
+                        is RecorderState.Finalizing -> stringResource(id = R.string.recorder_status_finalizing)
+                        is RecorderState.Saving -> stringResource(id = R.string.recorder_status_saving)
+                        is RecorderState.Saved -> stringResource(id = R.string.recorder_status_saved)
+                        is RecorderState.Error -> stringResource(id = R.string.recorder_status_error)
                     }
 
                     RecorderStatusPill(type = statusPillType, label = statusLabel)
@@ -237,30 +245,55 @@ fun RecorderScreen(
 
                     // Real Audio Waveform derived from microphone RMS/Peak amplitudes
                     AudioWaveform(amplitudes = amplitudeHistory)
+
+                    if (uiState.state is RecorderState.Error) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = recorderErrorMessage(uiState.state.type),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
 
-                // Controls Row (Pause/Resume, Add Marker, Stop)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
+	                // Controls Row (Record, Pause/Resume, Add Marker, Stop)
+	                Column(
+	                    horizontalAlignment = Alignment.CenterHorizontally,
+	                    modifier = Modifier.fillMaxWidth()
+	                ) {
+                        if (uiState.state is RecorderState.Idle || uiState.state is RecorderState.Ready || uiState.state is RecorderState.Saved || uiState.state is RecorderState.Error) {
+                            Button(
+                                onClick = { onStartRecording(defaultRecordingTitle) },
+                                enabled = hasMicPermission
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = stringResource(id = R.string.recorder_action_record))
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+
+	                    Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Add Marker Button
-                        IconButton(
-                            onClick = onAddMarker,
-                            enabled = uiState.state is RecorderState.Recording || uiState.state is RecorderState.Paused,
+	                        IconButton(
+	                            onClick = onAddMarker,
+	                            enabled = uiState.state is RecorderState.Recording || uiState.state is RecorderState.Paused,
                             modifier = Modifier.size(56.dp)
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Bookmark,
-                                    contentDescription = "Add Marker",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+	                                Icon(
+	                                    imageVector = Icons.Default.Bookmark,
+	                                    contentDescription = stringResource(id = R.string.recorder_cd_add_marker),
+	                                    tint = MaterialTheme.colorScheme.primary
+	                                )
                                 Text(
                                     text = "${uiState.markersCount}",
                                     style = MaterialTheme.typography.labelSmall,
@@ -288,16 +321,20 @@ fun RecorderScreen(
                         ) {
                             Icon(
                                 imageVector = if (uiState.state is RecorderState.Paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                contentDescription = if (uiState.state is RecorderState.Paused) "Resume" else "Pause",
+                                contentDescription = if (uiState.state is RecorderState.Paused) {
+                                    stringResource(id = R.string.recorder_cd_resume)
+                                } else {
+                                    stringResource(id = R.string.recorder_cd_pause)
+                                },
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
 
                         // Stop Button with deliberate input confirmation
-                        IconButton(
-                            onClick = { showStopConfirmation = true },
-                            enabled = uiState.state is RecorderState.Recording || uiState.state is RecorderState.Paused,
+	                        IconButton(
+	                            onClick = { showStopConfirmation = true },
+	                            enabled = uiState.state is RecorderState.Recording || uiState.state is RecorderState.Paused,
                             modifier = Modifier
                                 .size(56.dp)
                                 .background(
@@ -307,7 +344,7 @@ fun RecorderScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Stop,
-                                contentDescription = "Stop Recording",
+                                contentDescription = stringResource(id = R.string.recorder_cd_stop),
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(28.dp)
                             )
@@ -321,24 +358,35 @@ fun RecorderScreen(
     if (showStopConfirmation) {
         AlertDialog(
             onDismissRequest = { showStopConfirmation = false },
-            title = { Text(text = "Stop & Save Recording?") },
-            text = { Text(text = "Your recording session will be finalized and saved safely to your library.") },
+            title = { Text(text = stringResource(id = R.string.recorder_stop_dialog_title)) },
+            text = { Text(text = stringResource(id = R.string.recorder_stop_dialog_message)) },
             confirmButton = {
                 Button(
-                    onClick = {
-                        showStopConfirmation = false
-                        onStopRecording()
-                        onNavigateBack()
-                    }
+	                    onClick = {
+	                        showStopConfirmation = false
+	                        onStopRecording()
+	                    }
                 ) {
-                    Text(text = "Stop & Save")
+                    Text(text = stringResource(id = R.string.recorder_action_stop_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showStopConfirmation = false }) {
-                    Text(text = "Cancel")
+                    Text(text = stringResource(id = R.string.action_cancel))
                 }
             }
         )
     }
+}
+
+@Composable
+private fun recorderErrorMessage(type: RecorderErrorType): String {
+    val messageResId = when (type) {
+        RecorderErrorType.START_FAILED -> R.string.recorder_error_start_failed
+        RecorderErrorType.PAUSE_FAILED -> R.string.recorder_error_pause_failed
+        RecorderErrorType.RESUME_FAILED -> R.string.recorder_error_resume_failed
+        RecorderErrorType.FINALIZE_FAILED -> R.string.recorder_error_finalize_failed
+        RecorderErrorType.SAVE_FAILED -> R.string.recorder_error_save_failed
+    }
+    return stringResource(id = messageResId)
 }

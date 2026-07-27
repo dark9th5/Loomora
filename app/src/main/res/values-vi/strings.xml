@@ -72,12 +72,16 @@
     <!-- Subscription & Paywall -->
     <string name="paywall_title">Loomora Pro</string>
     <string name="paywall_subtitle">Mở khóa tính năng lọc âm nâng cao, chuyển âm thanh thành văn bản và phân tích thông minh.</string>
-    <string name="paywall_trial_info">Bạn còn %1$d lượt dùng thử miễn phí.</string>
-    <string name="paywall_free_note">Tính năng ghi âm, nghe lại và quản lý file cục bộ luôn miễn phí 100% và dùng được ngoại tuyến mãi mãi.</string>
+    <plurals name="paywall_trial_info">
+        <item quantity="one">lượt dùng thử miễn phí còn lại</item>
+        <item quantity="other">lượt dùng thử miễn phí còn lại</item>
+    </plurals>
+    <string name="paywall_free_note">Tính năng ghi âm, nghe lại và quản lý file cục bộ luôn miễn phí 100%% và dùng được ngoại tuyến mãi mãi.</string>
 
     <!-- General Actions & States -->
     <string name="action_cancel">Hủy</string>
     <string name="action_save">Lưu</string>
     <string name="action_retry">Thử lại</string>
+    <string name="marker_default_label">Mốc #%1$d</string>
     <string name="offline_banner_text">Bạn đang ngoại tuyến. Ghi âm và phát lại cục bộ vẫn hoạt động bình thường.</string>
 </resources>

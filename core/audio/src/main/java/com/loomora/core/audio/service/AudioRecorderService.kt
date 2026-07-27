@@ -11,19 +11,22 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.loomora.core.audio.R
 import com.loomora.core.audio.engine.AudioRecordEngine
 import com.loomora.core.audio.model.RecorderState
-import com.loomora.core.model.Recording
+import com.loomora.core.database.dao.RecordingDao
+import com.loomora.core.database.entity.RecordingEntity
 import com.loomora.core.model.RecordingStatus
-import com.loomora.core.model.repository.RecordingRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import java.io.File
 import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -33,10 +36,14 @@ class AudioRecorderService : Service() {
     lateinit var audioRecordEngine: AudioRecordEngine
 
     @Inject
-    lateinit var recordingRepository: RecordingRepository
+    lateinit var recordingDao: RecordingDao
 
     private val binder = LocalBinder()
-    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+
+    private var activeRecordingId: String? = null
+    private var activeTitle: String? = null
 
     inner class LocalBinder : Binder() {
         fun getService(): AudioRecorderService = this@AudioRecorderService
@@ -53,100 +60,219 @@ class AudioRecorderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val title = intent.getStringExtra(EXTRA_TITLE) ?: "New Recording"
-                val id = audioRecordEngine.startRecording(this, title)
-                if (id.isNotEmpty()) {
-                    startForeground(NOTIFICATION_ID, createNotification("Recording", 0L, isPaused = false))
-                }
+                val title = intent.getStringExtra(EXTRA_TITLE) ?: getString(R.string.audio_recording_default_title)
+                startRecordingSession(title)
             }
-            ACTION_PAUSE -> audioRecordEngine.pauseRecording()
-            ACTION_RESUME -> audioRecordEngine.resumeRecording()
-            ACTION_STOP -> stopAndSaveRecording()
+            ACTION_PAUSE -> if (isCurrentSession(intent)) pauseRecordingSession()
+            ACTION_RESUME -> if (isCurrentSession(intent)) resumeRecordingSession()
+            ACTION_STOP -> if (isCurrentSession(intent)) stopAndSaveRecording()
         }
         return START_NOT_STICKY
+    }
+
+    private fun startRecordingSession(title: String) {
+        val currentState = audioRecordEngine.state.value
+        if (currentState is RecorderState.Recording || currentState is RecorderState.Paused || activeRecordingId != null) {
+            return
+        }
+
+        val recordingId = UUID.randomUUID().toString()
+        activeRecordingId = recordingId
+        activeTitle = title
+        val outputFile = File(File(filesDir, "recordings"), "$recordingId.m4a")
+        val now = System.currentTimeMillis()
+        val recording = RecordingEntity(
+            id = recordingId,
+            title = title,
+            createdAt = now,
+            updatedAt = now,
+            durationMs = 0L,
+            status = RecordingStatus.RECORDING.name,
+            originalFileUri = "file://${outputFile.absolutePath}",
+            editedOutputUri = null,
+            mimeType = "audio/aac",
+            sampleRate = 44100,
+            channels = 2,
+            bitrate = 128000,
+            sizeBytes = 0L
+        )
+
+        serviceScope.launch(Dispatchers.IO) {
+            recordingDao.insertRecording(recording)
+                val started = audioRecordEngine.startRecording(this@AudioRecorderService, recordingId, outputFile)
+                if (started) {
+                    launch(Dispatchers.Main) {
+	                    startForeground(NOTIFICATION_ID, createNotification(R.string.audio_notification_status_recording, 0L, isPaused = false, recordingId = recordingId))
+	                }
+            } else {
+                outputFile.delete()
+                recordingDao.updateRecordingStatus(
+                    id = recordingId,
+                    status = RecordingStatus.RECOVERY_FAILED.name,
+                    durationMs = 0L,
+                    updatedAt = System.currentTimeMillis()
+                )
+                activeRecordingId = null
+                activeTitle = null
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        audioRecordEngine.release()
+        super.onDestroy()
     }
 
     private fun observeRecorderState() {
         serviceScope.launch {
             audioRecordEngine.state.collectLatest { state ->
                 when (state) {
-                    is RecorderState.Recording -> {
-                        val notification = createNotification("Recording", state.durationMs, isPaused = false)
-                        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                        manager.notify(NOTIFICATION_ID, notification)
-                    }
-                    is RecorderState.Paused -> {
-                        val notification = createNotification("Paused", state.durationMs, isPaused = true)
-                        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                        manager.notify(NOTIFICATION_ID, notification)
-                    }
-                    is RecorderState.Completed -> {
-                        saveRecordingToRepository(state.recordingId, state.fileUri)
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
-                    }
-                    is RecorderState.Error -> {
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
-                    }
+	                    is RecorderState.Recording -> {
+	                        updateRecordingStatus(state.recordingId, RecordingStatus.RECORDING, state.durationMs)
+	                        val notification = createNotification(R.string.audio_notification_status_recording, state.durationMs, isPaused = false, recordingId = state.recordingId)
+	                        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+	                        manager.notify(NOTIFICATION_ID, notification)
+	                    }
+	                    is RecorderState.Paused -> {
+	                        updateRecordingStatus(state.recordingId, RecordingStatus.PAUSED, state.durationMs)
+	                        val notification = createNotification(R.string.audio_notification_status_paused, state.durationMs, isPaused = true, recordingId = state.recordingId)
+	                        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+	                        manager.notify(NOTIFICATION_ID, notification)
+	                    }
+		                    is RecorderState.Error -> {
+		                        activeRecordingId?.let { id ->
+		                            updateRecordingStatus(id, RecordingStatus.RECOVERY_FAILED, audioRecordEngine.getCurrentDurationMs())
+		                        }
+	                        stopForeground(STOP_FOREGROUND_REMOVE)
+	                        stopSelf()
+	                    }
                     else -> {}
                 }
             }
         }
     }
 
+    private fun pauseRecordingSession() {
+        audioRecordEngine.pauseRecording()
+    }
+
+    private fun resumeRecordingSession() {
+        audioRecordEngine.resumeRecording()
+    }
+
+    private fun updateRecordingStatus(recordingId: String, status: RecordingStatus, durationMs: Long) {
+        serviceScope.launch(Dispatchers.IO) {
+            recordingDao.updateRecordingStatus(recordingId, status.name, durationMs, System.currentTimeMillis())
+        }
+    }
+
     private fun stopAndSaveRecording() {
-        val file = audioRecordEngine.stopRecording()
-        if (file == null) {
+        val result = audioRecordEngine.stopRecording()
+        if (result == null) {
+            val failedRecordingId = activeRecordingId
+            val durationMs = audioRecordEngine.getCurrentDurationMs()
+            if (failedRecordingId != null) {
+                val failedFilePath = File(File(filesDir, "recordings"), "$failedRecordingId.m4a").absolutePath
+                serviceScope.launch(Dispatchers.IO) {
+                    recordingDao.updateRecordingStatus(
+                        id = failedRecordingId,
+                        status = RecordingStatus.RECOVERY_FAILED.name,
+                        durationMs = durationMs,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    launch(Dispatchers.Main) {
+                        audioRecordEngine.markSaveFailed(failedRecordingId, failedFilePath, durationMs)
+                    }
+                }
+            }
+            activeRecordingId = null
+            activeTitle = null
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+        } else {
+            saveCompletedRecording(result.recordingId, result.file.absolutePath, result.durationMs)
         }
     }
 
-    private fun saveRecordingToRepository(recordingId: String, filePath: String) {
+    private fun saveCompletedRecording(recordingId: String, filePath: String, durationMs: Long) {
         val file = File(filePath)
-        val durationMs = audioRecordEngine.getCurrentDurationMs()
-        val recording = Recording(
-            id = recordingId,
-            title = "Recording ${recordingId.take(6)}",
-            createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis(),
-            durationMs = durationMs,
-            status = RecordingStatus.SAVED,
-            originalFileUri = "file://${file.absolutePath}",
-            mimeType = "audio/aac",
-            sampleRate = 44100,
-            channels = 2,
-            bitrate = 128000,
-            sizeBytes = if (file.exists()) file.length() else 0L
-        )
 
         serviceScope.launch(Dispatchers.IO) {
-            recordingRepository.insertRecording(recording)
+            val fileUri = "file://${file.absolutePath}"
+            try {
+                val existing = recordingDao.getRecordingByIdSync(recordingId)
+                val now = System.currentTimeMillis()
+                recordingDao.insertRecording(
+                    (existing ?: RecordingEntity(
+                        id = recordingId,
+	                        title = activeTitle ?: getString(R.string.audio_recording_recovery_title, recordingId.take(6)),
+                        createdAt = now,
+                        updatedAt = now,
+                        durationMs = 0L,
+                        status = RecordingStatus.FINALIZING.name,
+                        originalFileUri = fileUri,
+                        editedOutputUri = null,
+                        mimeType = "audio/aac",
+                        sampleRate = 44100,
+                        channels = 2,
+                        bitrate = 128000,
+                        sizeBytes = 0L
+                    )).copy(
+                        updatedAt = now,
+                        durationMs = durationMs,
+                        status = RecordingStatus.SAVED.name,
+                        originalFileUri = fileUri,
+                        sizeBytes = if (file.exists()) file.length() else 0L
+                    )
+                )
+                activeRecordingId = null
+                activeTitle = null
+                launch(Dispatchers.Main) {
+                    audioRecordEngine.markSaved(recordingId, file.absolutePath, durationMs)
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    audioRecordEngine.markSaveFailed(recordingId, file.absolutePath, durationMs)
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                }
+            }
         }
     }
 
-    private fun createNotification(statusText: String, durationMs: Long, isPaused: Boolean): Notification {
+    private fun createNotification(statusTextResId: Int, durationMs: Long, isPaused: Boolean, recordingId: String?): Notification {
         val seconds = durationMs / 1000
         val timeString = String.format(Locale.getDefault(), "%02d:%02d", seconds / 60, seconds % 60)
+        val statusText = getString(statusTextResId)
 
-        val pauseResumeAction = if (isPaused) {
-            val intent = Intent(this, AudioRecorderService::class.java).apply { action = ACTION_RESUME }
-            val pendingIntent = PendingIntent.getService(this, 1, intent, PendingIntent.FLAG_IMMUTABLE)
-            NotificationCompat.Action.Builder(0, "Resume", pendingIntent).build()
-        } else {
-            val intent = Intent(this, AudioRecorderService::class.java).apply { action = ACTION_PAUSE }
-            val pendingIntent = PendingIntent.getService(this, 2, intent, PendingIntent.FLAG_IMMUTABLE)
-            NotificationCompat.Action.Builder(0, "Pause", pendingIntent).build()
-        }
-
-        val stopIntent = Intent(this, AudioRecorderService::class.java).apply { action = ACTION_STOP }
+		        val pauseResumeAction = if (isPaused) {
+		            val intent = Intent(this, AudioRecorderService::class.java).apply {
+		                action = ACTION_RESUME
+		                putExtra(EXTRA_RECORDING_ID, recordingId)
+		            }
+		            val pendingIntent = PendingIntent.getService(this, 1, intent, PendingIntent.FLAG_IMMUTABLE)
+		            NotificationCompat.Action.Builder(0, getString(R.string.audio_notification_action_resume), pendingIntent).build()
+		        } else {
+		            val intent = Intent(this, AudioRecorderService::class.java).apply {
+		                action = ACTION_PAUSE
+		                putExtra(EXTRA_RECORDING_ID, recordingId)
+		            }
+		            val pendingIntent = PendingIntent.getService(this, 2, intent, PendingIntent.FLAG_IMMUTABLE)
+		            NotificationCompat.Action.Builder(0, getString(R.string.audio_notification_action_pause), pendingIntent).build()
+		        }
+	
+	        val stopIntent = Intent(this, AudioRecorderService::class.java).apply {
+	            action = ACTION_STOP
+	            putExtra(EXTRA_RECORDING_ID, recordingId)
+	        }
         val stopPendingIntent = PendingIntent.getService(this, 3, stopIntent, PendingIntent.FLAG_IMMUTABLE)
-        val stopAction = NotificationCompat.Action.Builder(0, "Stop", stopPendingIntent).build()
+        val stopAction = NotificationCompat.Action.Builder(0, getString(R.string.audio_notification_action_stop), stopPendingIntent).build()
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Loomora - $statusText")
-            .setContentText("Duration: $timeString")
+            .setContentTitle(getString(R.string.audio_notification_title, statusText))
+            .setContentText(getString(R.string.audio_notification_duration, timeString))
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -155,13 +281,18 @@ class AudioRecorderService : Service() {
             .build()
     }
 
+    private fun isCurrentSession(intent: Intent): Boolean {
+        val commandRecordingId = intent.getStringExtra(EXTRA_RECORDING_ID)
+        return commandRecordingId == null || commandRecordingId == activeRecordingId
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Loomora Recording Channel",
-                NotificationManager.IMPORTANCE_LOW
-            )
+	            val channel = NotificationChannel(
+	                CHANNEL_ID,
+	                getString(R.string.audio_notification_channel_name),
+	                NotificationManager.IMPORTANCE_LOW
+	            )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
@@ -177,8 +308,9 @@ class AudioRecorderService : Service() {
         const val ACTION_STOP = "com.loomora.action.STOP_RECORDING"
 
         const val EXTRA_TITLE = "extra_recording_title"
+        const val EXTRA_RECORDING_ID = "extra_recording_id"
 
-        fun startService(context: Context, title: String = "New Recording") {
+        fun startService(context: Context, title: String) {
             val intent = Intent(context, AudioRecorderService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_TITLE, title)
@@ -193,6 +325,30 @@ class AudioRecorderService : Service() {
         fun stopService(context: Context) {
             val intent = Intent(context, AudioRecorderService::class.java).apply {
                 action = ACTION_STOP
+            }
+            context.startService(intent)
+        }
+
+        fun pauseService(context: Context, recordingId: String?) {
+            val intent = Intent(context, AudioRecorderService::class.java).apply {
+                action = ACTION_PAUSE
+                putExtra(EXTRA_RECORDING_ID, recordingId)
+            }
+            context.startService(intent)
+        }
+
+        fun resumeService(context: Context, recordingId: String?) {
+            val intent = Intent(context, AudioRecorderService::class.java).apply {
+                action = ACTION_RESUME
+                putExtra(EXTRA_RECORDING_ID, recordingId)
+            }
+            context.startService(intent)
+        }
+
+        fun stopService(context: Context, recordingId: String?) {
+            val intent = Intent(context, AudioRecorderService::class.java).apply {
+                action = ACTION_STOP
+                putExtra(EXTRA_RECORDING_ID, recordingId)
             }
             context.startService(intent)
         }

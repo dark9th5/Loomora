@@ -1,10 +1,13 @@
 package com.loomora.core.database.repository
 
+import android.content.Context
 import com.loomora.core.database.dao.RecordingDao
 import com.loomora.core.database.entity.RecordingEntity
 import com.loomora.core.model.Recording
+import com.loomora.core.model.RecordingOperationResult
 import com.loomora.core.model.RecordingStatus
 import com.loomora.core.model.repository.RecordingRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
@@ -13,11 +16,19 @@ import javax.inject.Singleton
 
 @Singleton
 class RecordingRepositoryImpl @Inject constructor(
-    private val recordingDao: RecordingDao
+    private val recordingDao: RecordingDao,
+    @ApplicationContext private val context: Context,
+    private val fileSystem: RecordingFileSystem
 ) : RecordingRepository {
 
     override fun getActiveRecordings(): Flow<List<Recording>> {
         return recordingDao.getActiveRecordings().map { entities ->
+            entities.map { it.toDomainModel() }
+        }
+    }
+
+    override fun getRecoveryDiagnostics(): Flow<List<Recording>> {
+        return recordingDao.getRecoveryDiagnostics().map { entities ->
             entities.map { it.toDomainModel() }
         }
     }
@@ -50,43 +61,119 @@ class RecordingRepositoryImpl @Inject constructor(
         recordingDao.insertRecording(recording.toEntity())
     }
 
+    override suspend fun renameRecording(id: String, newTitle: String): RecordingOperationResult {
+        if (newTitle.isBlank()) {
+            return RecordingOperationResult.DatabaseFailure("Recording title cannot be blank")
+        }
+        return try {
+            if (recordingDao.renameRecording(id, newTitle.trim(), System.currentTimeMillis()) > 0) {
+                RecordingOperationResult.Success
+            } else {
+                RecordingOperationResult.NotFound
+            }
+        } catch (exception: Exception) {
+            RecordingOperationResult.DatabaseFailure(exception.message ?: "Rename failed")
+        }
+    }
+
     override suspend fun toggleFavorite(id: String, isFavorite: Boolean) {
         recordingDao.setFavorite(id, isFavorite, System.currentTimeMillis())
     }
 
-    override suspend fun softDeleteRecording(id: String) {
-        recordingDao.softDeleteRecording(id, System.currentTimeMillis(), System.currentTimeMillis())
+    override suspend fun softDeleteRecording(id: String): RecordingOperationResult {
+        return try {
+            if (recordingDao.softDeleteRecording(id, System.currentTimeMillis(), System.currentTimeMillis()) > 0) {
+                RecordingOperationResult.Success
+            } else {
+                RecordingOperationResult.NotFound
+            }
+        } catch (exception: Exception) {
+            RecordingOperationResult.DatabaseFailure(exception.message ?: "Soft delete failed")
+        }
     }
 
-    override suspend fun restoreRecording(id: String) {
-        recordingDao.restoreRecording(id, System.currentTimeMillis())
+    override suspend fun restoreRecording(id: String): RecordingOperationResult {
+        return try {
+            if (recordingDao.restoreRecording(id, System.currentTimeMillis()) > 0) {
+                RecordingOperationResult.Success
+            } else {
+                RecordingOperationResult.NotFound
+            }
+        } catch (exception: Exception) {
+            RecordingOperationResult.DatabaseFailure(exception.message ?: "Restore failed")
+        }
     }
 
-    override suspend fun deleteRecordingPermanently(id: String) {
-        val recording = recordingDao.getRecordingByIdSync(id) ?: return
+    override suspend fun deleteRecordingPermanently(id: String): RecordingOperationResult {
+        val recording = recordingDao.getRecordingByIdSync(id) ?: return RecordingOperationResult.NotFound
+        val stagingDir = File(context.filesDir, "pending_delete")
+        val originals = localFilesForRecording(recording)
+        val stagedFiles = mutableListOf<Pair<File, File>>()
 
-        // Safety check: ensure file path deletion does not traverse arbitrary system paths
-        recording.originalFileUri.let { uri ->
-            if (uri.startsWith("file://") || uri.startsWith("/")) {
-                val filePath = uri.removePrefix("file://")
-                val file = File(filePath)
-                if (file.exists() && file.isFile && !filePath.contains("..")) {
-                    file.delete()
+        try {
+            originals.forEach { source ->
+                if (!source.exists()) {
+                    return@forEach
                 }
+                val staged = fileSystem.stageForDeletion(source, stagingDir)
+                stagedFiles += staged to source
+            }
+        } catch (exception: Exception) {
+            stagedFiles.forEach { (staged, original) ->
+                runCatching { fileSystem.restoreFromStaging(staged, original) }
+            }
+            return RecordingOperationResult.FileSystemFailure(
+                exception.message ?: "Unable to stage files for deletion"
+            )
+        }
+
+        val deleteCount = try {
+            recordingDao.deleteRecordingPermanently(id)
+        } catch (exception: Exception) {
+            stagedFiles.forEach { (staged, original) ->
+                runCatching { fileSystem.restoreFromStaging(staged, original) }
+            }
+            return RecordingOperationResult.DatabaseFailure(
+                exception.message ?: "Unable to remove recording row"
+            )
+        }
+
+        if (deleteCount <= 0) {
+            stagedFiles.forEach { (staged, original) ->
+                runCatching { fileSystem.restoreFromStaging(staged, original) }
+            }
+            return RecordingOperationResult.NotFound
+        }
+
+        stagedFiles.forEach { (staged, _) ->
+            if (!fileSystem.deleteIfExists(staged)) {
+                return RecordingOperationResult.FileSystemFailure(
+                    "Recording row was removed, but a staged file could not be deleted"
+                )
             }
         }
 
-        recording.editedOutputUri?.let { uri ->
-            if (uri.startsWith("file://") || uri.startsWith("/")) {
-                val filePath = uri.removePrefix("file://")
-                val file = File(filePath)
-                if (file.exists() && file.isFile && !filePath.contains("..")) {
-                    file.delete()
-                }
-            }
+        return if (originals.isNotEmpty() && originals.none { it.exists() } && stagedFiles.isEmpty()) {
+            RecordingOperationResult.SourceMissing
+        } else {
+            RecordingOperationResult.Success
         }
+    }
 
-        recordingDao.deleteRecordingPermanently(id)
+    private fun localFilesForRecording(recording: RecordingEntity): List<File> {
+        val files = buildList {
+            recording.originalFileUri.toLocalFileOrNull()?.let(::add)
+            recording.editedOutputUri?.toLocalFileOrNull()?.let(::add)
+        }
+        return files.distinctBy { it.absolutePath }
+    }
+
+    private fun String.toLocalFileOrNull(): File? {
+        val path = removePrefix("file://")
+        if (path.isBlank() || path.contains("..")) {
+            return null
+        }
+        return File(path)
     }
 
     private fun RecordingEntity.toDomainModel(): Recording {

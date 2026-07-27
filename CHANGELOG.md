@@ -1,0 +1,85 @@
+# Changelog
+
+## 2026-07-27
+
+- Added `:core:offlineai` as a real offline-processing boundary for local engine contracts, model install state, compatibility checks, lifecycle management, and analysis-job orchestration.
+- Added `OfflineModelManifest`, install-state/compatibility models, `OfflineEngineLifecycleManager`, and provider-neutral local engine interfaces for transcription, diarization, insights, and speech enhancement.
+- Added SAF-based model import with streamed copy, checksum verification, atomic publish, persistent metadata, and corrupt/incompatible detection.
+- Added Room schema/version `2` foundation for `offline_models` and `analysis_jobs`, plus migration coverage.
+- Deleted the production network-oriented AI processing classes from `core:network` and rewired recording detail to use `OfflineAnalysisCoordinator`.
+- Added minimal Settings model-management UI for import/remove and installed/missing/verifying/corrupt/incompatible states, including manifest license/source details.
+- Added offline foundation tests for valid import, checksum mismatch, interrupted import, duplicate import, incompatible import, missing model file after ready, and model removal preserving analysis jobs.
+- Added test wiring fixes for recording detail to compile against the new offline coordinator path.
+- Pinned sherpa-onnx to `1.13.4` and LiteRT-LM Android to `0.10.2`; LiteRT-LM is currently packaged as `runtimeOnly` because the official checked artifacts expose newer Kotlin metadata than the repo Kotlin `2.1.0` toolchain can compile against directly.
+- Added Room version `3` transcript persistence with `transcript_revisions` and `transcript_segments`.
+- Added transaction-backed transcript publishing with stable segment IDs, raw text, normalized text, source fingerprint, model version, and pipeline version.
+- Added a local transcription coordinator path that validates/fingerprints source audio, prepares temp 16 kHz mono PCM, calls `LocalTranscriptionEngine`, persists transcript revisions, updates analysis jobs, and cleans temp PCM.
+- Added deterministic PCM16 WAV preprocessing and speech-window detection for transcription fixtures.
+- Added official upstream `sherpa-onnx-1.13.4.aar` to `:core:offlineai`.
+- Wired production `SherpaOnnxTranscriptionEngine` to the sherpa Android offline Whisper recognizer API, with local PCM streaming, timestamp mapping, and deterministic recognizer/stream release.
+- Updated model import publishing so verified Whisper model directories keep encoder/decoder ONNX files together after SAF import.
+- Added additional model-file manifest entries and verification so multi-file Whisper packs fail import if any listed sidecar has the wrong size or SHA-256.
+- Added a zip extraction path traversal guard for offline model packs.
+- Generated a local Hugging Face based multilingual Whisper tiny int8 model pack under `build/model-fixtures` for device import/smoke testing.
+- Updated `SherpaOnnxTranscriptionEngine` to locate and pass the tokens file to sherpa's offline model config.
+- Fixed sherpa-onnx imported-model loading by constructing the recognizer with a null `AssetManager` for absolute app-storage model paths.
+- Added a physical-device sherpa Whisper tiny int8 instrumentation smoke test that runs a real local ASR pass against a deterministic WAV fixture.
+- Added recording-detail transcript observation, rendering, and click-to-seek segment behavior.
+- Added offline transcription tests for missing model, short Vietnamese fixture persistence, mixed-language text, corrupt input, cancellation cleanup, retry/idempotency, multi-file model publish, secondary-file checksum failure, and missing-tokens typed failure.
+
+## 2026-07-26
+
+- Fixed CI baseline lint failures in app/design system string resources.
+- Converted trial-use text to plural resources and updated `TrialUsageChip`.
+- Fixed Compose modifier parameter ordering warnings in design system components.
+- Removed debug signing from the release build type so PR CI can compile release without production signing secrets.
+- Adjusted `RecorderViewModelTest` fake DAO shape to avoid a lint/Kotlin FIR analysis crash while keeping the test active.
+- Added production-safe release signing configuration backed by environment variables or untracked `keystore.properties`.
+- Added a manual GitHub release workflow with signing-secret validation.
+- Documented release key generation, backup, local signing, GitHub Secrets, and R8 hardening deferral.
+- Fixed recorder session identity so Room row, engine state, service commands, output path, UI state, and marker foreign keys use one real recording ID.
+- Routed recorder pause/resume/stop commands through `AudioRecorderService` instead of direct ViewModel-to-engine calls.
+- Changed active marker count to a Room-backed Flow and removed the production `"active"` marker ID.
+- Added marker foreign-key/count tests and updated recorder state tests for session IDs.
+- Removed recorder auto-start after microphone permission grant and added an explicit Record action.
+- Added session-aware `Finalizing`, `Saving`, and `Saved` recorder states with typed safe errors.
+- Fixed recorder duration accounting so paused time is excluded, including stop-while-paused.
+- Changed recorder stop/save flow so UI navigation waits for Room save acknowledgement.
+- Added duplicate-start guarding in `RecorderViewModel`.
+- Added unit coverage for paused-duration tracking and saved-state duration metadata.
+- Added system Back confirmation while recording/paused.
+- Filtered Home/Library DAO recording lists to saved recordings only.
+- Added recovery fallback so a null engine stop result cannot leave a recording row stuck as active.
+- Added deterministic recorder cleanup with idempotent `AudioRecordEngine.release()`.
+- Switched recorder/player long-lived internal scopes to `SupervisorJob`.
+- Released recorder resources from `AudioRecorderService.onDestroy()`.
+- Added explicit ExoPlayer release in `AudioPlayerEngine` and wired recording detail ViewModel teardown to release playback.
+- Localized recorder screen labels, dialog text, control content descriptions, notification channel/title/body/actions, and typed recorder error messages.
+- Added English and Vietnamese resource entries for P0.5 recorder/notification strings.
+- Added unit coverage for idle recorder release and reset duration behavior.
+- Added a startup recording recovery scanner for interrupted `RECORDING`, `PAUSED`, and `FINALIZING` rows.
+- Added Android media validation for recovery using metadata and audio-track probing.
+- Marked missing, zero-byte, corrupt, recovered, and orphan recording states explicitly in Room metadata.
+- Preserved orphan/corrupt recording files and made orphan diagnostic row creation idempotent.
+- Added a 7-day retention policy for expired `.tmp` files in the recordings directory only.
+- Added recovery unit coverage for missing files, zero-byte files, playable partials, corrupt files, orphan files, repeated scans, saved-row preservation, and temp retention.
+- Added a Library recovery diagnostics section with localized status text plus `Open`, `Keep`, and confirmed `Delete` actions for `RECOVERY_FAILED` rows.
+- Added Library ViewModel coverage for surfaced recovery diagnostics and keep/delete behavior.
+- Added typed storage/library operation models for rename, trash, restore, permanent delete, export, low storage, and missing-source states.
+- Added `RecordingFileSystem` and staged permanent-delete handling so file/Room delete paths fail more safely.
+- Added `RecordingStorageManager` for storage usage scanning, free-space checks, share intents, and SAF export copy.
+- Added `FileProvider` manifest/resource wiring for content-URI sharing.
+- Added Library trash mode with restore/permanent-delete actions and storage usage/low-space surface.
+- Added Recording Detail rename/share/export/trash/restore/delete actions backed by repository/storage services.
+- Added task-focused unit coverage for recording detail, library, recorder low-storage idle path, and repository delete behavior.
+- Added a persisted waveform pipeline backed by streaming audio decode, SHA-256 source fingerprinting, and file-backed cache entries per fingerprint/version/resolution.
+- Replaced editor placeholder waveform data and recording detail live-only visuals with background-loaded persisted waveform state.
+- Added seekable waveform interaction in recording detail aligned to the existing millisecond playback timeline.
+- Added deterministic waveform fixture tests covering silence, tone, corrupt input, cache hit, cache invalidation, long-file fixed-bin output, and timestamp/bin mapping.
+- Fixed recording detail rename timing so title updates use the stable `recordingId` instead of depending on already-hydrated UI state.
+- Replaced the production fake copy-file audio editor export path with a real Media3-backed non-destructive export pipeline.
+- Added edit recipe validation/normalization, source fingerprint, recipe revision, and keep-range preview support.
+- Added temp-output publish/validation flow so edited audio is validated before becoming a saved recording.
+- Added editor export progress, cancellation, typed error mapping, and exported-recording share flow.
+- Added recipe/exporter unit coverage plus ADR and limitations docs for unsupported operations and Media3/device constraints.
+- Pinned Media3 to `1.9.1` for the current AGP `8.8.0` / `compileSdk 35` toolchain after confirming `1.10.1` requires `compileSdk 36`.

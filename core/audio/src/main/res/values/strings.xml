@@ -1,0 +1,12 @@
+<resources>
+    <string name="audio_recording_default_title">New Recording</string>
+    <string name="audio_recording_recovery_title">Recording %1$s</string>
+    <string name="audio_notification_channel_name">Loomora Recording Channel</string>
+    <string name="audio_notification_status_recording">Recording</string>
+    <string name="audio_notification_status_paused">Paused</string>
+    <string name="audio_notification_action_pause">Pause</string>
+    <string name="audio_notification_action_resume">Resume</string>
+    <string name="audio_notification_action_stop">Stop</string>
+    <string name="audio_notification_title">Loomora - %1$s</string>
+    <string name="audio_notification_duration">Duration: %1$s</string>
+</resources>

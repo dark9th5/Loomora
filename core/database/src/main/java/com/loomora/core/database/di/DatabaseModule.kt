@@ -2,12 +2,16 @@ package com.loomora.core.database.di
 
 import android.content.Context
 import androidx.room.Room
+import com.loomora.core.database.LoomoraMigrations
 import com.loomora.core.database.LoomoraDatabase
+import com.loomora.core.database.dao.AnalysisJobDao
 import com.loomora.core.database.dao.AudioSegmentDao
 import com.loomora.core.database.dao.BackgroundJobDao
 import com.loomora.core.database.dao.MarkerDao
+import com.loomora.core.database.dao.OfflineModelDao
 import com.loomora.core.database.dao.RecordingDao
 import com.loomora.core.database.dao.TagDao
+import com.loomora.core.database.dao.TranscriptDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,7 +32,9 @@ object DatabaseModule {
             context,
             LoomoraDatabase::class.java,
             "loomora.db"
-        ).build()
+        )
+            .addMigrations(LoomoraMigrations.MIGRATION_1_2, LoomoraMigrations.MIGRATION_2_3)
+            .build()
     }
 
     @Provides
@@ -45,4 +51,13 @@ object DatabaseModule {
 
     @Provides
     fun provideBackgroundJobDao(database: LoomoraDatabase): BackgroundJobDao = database.backgroundJobDao()
+
+    @Provides
+    fun provideOfflineModelDao(database: LoomoraDatabase): OfflineModelDao = database.offlineModelDao()
+
+    @Provides
+    fun provideAnalysisJobDao(database: LoomoraDatabase): AnalysisJobDao = database.analysisJobDao()
+
+    @Provides
+    fun provideTranscriptDao(database: LoomoraDatabase): TranscriptDao = database.transcriptDao()
 }

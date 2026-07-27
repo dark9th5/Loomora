@@ -1,5 +1,7 @@
 package com.loomora.core.database.di
 
+import com.loomora.core.database.repository.DefaultRecordingFileSystem
+import com.loomora.core.database.repository.RecordingFileSystem
 import com.loomora.core.database.repository.RecordingRepositoryImpl
 import com.loomora.core.model.repository.RecordingRepository
 import dagger.Binds
@@ -17,4 +19,10 @@ abstract class RepositoryModule {
     abstract fun bindRecordingRepository(
         impl: RecordingRepositoryImpl
     ): RecordingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRecordingFileSystem(
+        impl: DefaultRecordingFileSystem
+    ): RecordingFileSystem
 }

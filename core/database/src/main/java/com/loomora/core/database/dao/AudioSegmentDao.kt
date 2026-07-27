@@ -5,8 +5,10 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.loomora.core.database.entity.AudioSegmentEntity
+import com.loomora.core.database.entity.AnalysisJobEntity
 import com.loomora.core.database.entity.BackgroundJobEntity
 import com.loomora.core.database.entity.MarkerEntity
+import com.loomora.core.database.entity.OfflineModelEntity
 import com.loomora.core.database.entity.RecordingTagCrossRef
 import com.loomora.core.database.entity.TagEntity
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +36,9 @@ interface MarkerDao {
     @Query("SELECT * FROM markers WHERE recordingId = :recordingId ORDER BY timeMs ASC")
     fun getMarkersForRecording(recordingId: String): Flow<List<MarkerEntity>>
 
+    @Query("SELECT COUNT(*) FROM markers WHERE recordingId = :recordingId")
+    fun getMarkerCountForRecording(recordingId: String): Flow<Int>
+
     @Query("DELETE FROM markers WHERE id = :id")
     suspend fun deleteMarker(id: String)
 }
@@ -60,4 +65,48 @@ interface BackgroundJobDao {
 
     @Query("UPDATE background_jobs SET state = :state, progress = :progress, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateJobProgress(id: String, state: String, progress: Float, updatedAt: Long)
+}
+
+@Dao
+interface OfflineModelDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertModel(model: OfflineModelEntity)
+
+    @Query("SELECT * FROM offline_models ORDER BY capability ASC, modelId ASC")
+    fun observeModels(): Flow<List<OfflineModelEntity>>
+
+    @Query("SELECT * FROM offline_models ORDER BY capability ASC, modelId ASC")
+    suspend fun getAllModels(): List<OfflineModelEntity>
+
+    @Query("SELECT * FROM offline_models WHERE modelId = :modelId")
+    suspend fun getModelById(modelId: String): OfflineModelEntity?
+
+    @Query("DELETE FROM offline_models WHERE modelId = :modelId")
+    suspend fun deleteModel(modelId: String)
+}
+
+@Dao
+interface AnalysisJobDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertJob(job: AnalysisJobEntity)
+
+    @Query("SELECT * FROM analysis_jobs WHERE status IN ('QUEUED','PREPARING_AUDIO','ENHANCING','DETECTING_SPEECH','TRANSCRIBING','DIARIZING','ALIGNING','SUMMARIZING_CHUNKS','SYNTHESIZING','VALIDATING','CANCEL_REQUESTED') ORDER BY createdAt ASC")
+    fun observePendingJobs(): Flow<List<AnalysisJobEntity>>
+
+    @Query("SELECT * FROM analysis_jobs WHERE recordingId = :recordingId ORDER BY createdAt DESC")
+    fun observeJobsForRecording(recordingId: String): Flow<List<AnalysisJobEntity>>
+
+    @Query("SELECT * FROM analysis_jobs WHERE logicalKey = :logicalKey LIMIT 1")
+    suspend fun getJobByLogicalKey(logicalKey: String): AnalysisJobEntity?
+
+    @Query("UPDATE analysis_jobs SET status = :status, progress = :progress, stageOutputRef = :stageOutputRef, modelVersionsJson = :modelVersionsJson, errorCode = :errorCode, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateJobState(
+        id: String,
+        status: String,
+        progress: Float,
+        stageOutputRef: String?,
+        modelVersionsJson: String,
+        errorCode: String?,
+        updatedAt: Long
+    )
 }

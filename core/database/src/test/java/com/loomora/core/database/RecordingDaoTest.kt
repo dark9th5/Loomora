@@ -3,6 +3,7 @@ package com.loomora.core.database
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.loomora.core.database.dao.RecordingDao
+import com.loomora.core.database.entity.MarkerEntity
 import com.loomora.core.database.entity.RecordingEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -65,6 +66,21 @@ class RecordingDaoTest {
     }
 
     @Test
+    fun getActiveRecordings_excludesUnfinishedSessions() = runBlocking {
+        val saved = createTestRecording(id = "rec-saved", title = "Saved Note")
+        val recording = createTestRecording(id = "rec-recording", title = "Recording Note", status = "RECORDING")
+        val paused = createTestRecording(id = "rec-paused", title = "Paused Note", status = "PAUSED")
+
+        recordingDao.insertRecording(saved)
+        recordingDao.insertRecording(recording)
+        recordingDao.insertRecording(paused)
+
+        val activeList = recordingDao.getActiveRecordings().first()
+        assertEquals(1, activeList.size)
+        assertEquals("rec-saved", activeList[0].id)
+    }
+
+    @Test
     fun favoriteToggle_updatesIsFavoriteField() = runBlocking {
         val recording = createTestRecording(id = "rec-1", isFavorite = false)
         recordingDao.insertRecording(recording)
@@ -110,24 +126,65 @@ class RecordingDaoTest {
     fun searchRecordings_returnsMatchingTitlesOnly() = runBlocking {
         recordingDao.insertRecording(createTestRecording(id = "rec-1", title = "Architecture Meeting"))
         recordingDao.insertRecording(createTestRecording(id = "rec-2", title = "Grocery List"))
+        recordingDao.insertRecording(createTestRecording(id = "rec-3", title = "Meeting Draft", status = "RECORDING"))
 
         val results = recordingDao.searchRecordings("Meeting").first()
         assertEquals(1, results.size)
         assertEquals("Architecture Meeting", results[0].title)
     }
 
+    @Test
+    fun markerInsert_usesPersistedRecordingForeignKey() = runBlocking {
+        recordingDao.insertRecording(createTestRecording(id = "rec-1"))
+
+        database.markerDao().insertMarker(
+            MarkerEntity(
+                id = "marker-1",
+                recordingId = "rec-1",
+                timeMs = 1500L,
+                label = "Marker #1",
+                createdAt = System.currentTimeMillis()
+            )
+        )
+
+        val markers = database.markerDao().getMarkersForRecording("rec-1").first()
+        assertEquals(1, markers.size)
+        assertEquals("rec-1", markers.first().recordingId)
+        assertEquals(1, database.markerDao().getMarkerCountForRecording("rec-1").first())
+    }
+
+    @Test
+    fun markerCounts_areScopedPerRecording() = runBlocking {
+        recordingDao.insertRecording(createTestRecording(id = "rec-1"))
+        recordingDao.insertRecording(createTestRecording(id = "rec-2"))
+
+        database.markerDao().insertMarker(
+            MarkerEntity(
+                id = "marker-1",
+                recordingId = "rec-1",
+                timeMs = 1000L,
+                label = "Marker #1",
+                createdAt = System.currentTimeMillis()
+            )
+        )
+
+        assertEquals(1, database.markerDao().getMarkerCountForRecording("rec-1").first())
+        assertEquals(0, database.markerDao().getMarkerCountForRecording("rec-2").first())
+    }
+
     private fun createTestRecording(
         id: String,
         title: String = "Test Recording",
         isFavorite: Boolean = false,
-        deletedAt: Long? = null
+        deletedAt: Long? = null,
+        status: String = "SAVED"
     ) = RecordingEntity(
         id = id,
         title = title,
         createdAt = System.currentTimeMillis(),
         updatedAt = System.currentTimeMillis(),
         durationMs = 60000L,
-        status = "SAVED",
+        status = status,
         originalFileUri = "file:///data/user/0/com.loomora/files/$id.aac",
         editedOutputUri = null,
         mimeType = "audio/aac",

@@ -10,13 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
+import com.loomora.core.designsystem.R
 
 @Composable
 fun TrialUsageChip(
     remainingUses: Int,
-    maxUses: Int = 3,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    maxUses: Int = 3
 ) {
     val backgroundColor = if (remainingUses > 0) {
         MaterialTheme.colorScheme.secondaryContainer
@@ -38,7 +40,10 @@ fun TrialUsageChip(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "$remainingUses/$maxUses Free Trials",
+            text = "${remainingUses}/${maxUses} " + pluralStringResource(
+                id = R.plurals.paywall_trial_info,
+                count = remainingUses
+            ),
             style = MaterialTheme.typography.labelSmall,
             color = contentColor
         )
