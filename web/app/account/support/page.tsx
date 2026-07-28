@@ -3,7 +3,7 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireSession } from '@/lib/portal/authz';
-import { listTicketsByCustomer } from '@/features/support/support-service';
+import { listTicketsByCustomer, type CustomerTicket } from '@/features/support/support-service';
 import { MessageSquare, Plus } from 'lucide-react';
 
 const nav = [
@@ -16,7 +16,7 @@ const nav = [
 export default async function SupportPage() {
   const session = await requireSession();
   const userId = session.user?.id;
-  const tickets = userId && process.env.DATABASE_URL ? await listTicketsByCustomer(userId) : [];
+  const tickets: CustomerTicket[] = userId && process.env.DATABASE_URL ? await listTicketsByCustomer(userId) : [];
 
   return (
     <PortalShell title="Support Tickets" description="View your support requests. Only tickets owned by your account are shown." nav={nav}>

@@ -3,9 +3,9 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireSession } from '@/lib/portal/authz';
-import { getLicensesByCustomer } from '@/features/licenses/license-service';
-import { listOrdersByCustomer } from '@/features/orders/order-service';
-import { listTicketsByCustomer } from '@/features/support/support-service';
+import { getLicensesByCustomer, type CustomerLicense } from '@/features/licenses/license-service';
+import { listOrdersByCustomer, type CustomerOrder } from '@/features/orders/order-service';
+import { listTicketsByCustomer, type CustomerTicket } from '@/features/support/support-service';
 import { getLatestStableRelease } from '@/features/downloads/download-service';
 import { FileKey, Package, Headphones, Download, ShoppingCart, MessageSquare, Shield } from 'lucide-react';
 
@@ -18,11 +18,13 @@ const nav = [
   { href: '/account/settings', label: 'Settings' },
 ];
 
+type CapabilityItem = CustomerLicense['capabilities'][number];
+
 export default async function AccountDashboardPage() {
   const session = await requireSession();
   const userId = session.user?.id;
 
-  const [licenses, orders, tickets, latestRelease] = userId && process.env.DATABASE_URL
+  const [licenses, orders, tickets, latestRelease]: [CustomerLicense[], CustomerOrder[], CustomerTicket[], Awaited<ReturnType<typeof getLatestStableRelease>>] = userId && process.env.DATABASE_URL
     ? await Promise.all([
         getLicensesByCustomer(userId),
         listOrdersByCustomer(userId),
@@ -97,7 +99,7 @@ export default async function AccountDashboardPage() {
             </div>
             <div>
               <span className="text-slate-500">Capabilities</span>
-              <p className="mt-0.5">{activeLicense.capabilities.map((c) => c.capability.key).join(', ') || 'N/A'}</p>
+              <p className="mt-0.5">{activeLicense.capabilities.map((c: CapabilityItem) => c.capability.key).join(', ') || 'N/A'}</p>
             </div>
             <div>
               <span className="text-slate-500">Device Binding</span>

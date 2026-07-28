@@ -3,8 +3,10 @@ import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusTable } from '@/components/StatusTable';
 import { requireAdmin } from '@/lib/portal/authz';
-import { listAllLicenses } from '@/features/licenses/license-service';
+import { listAllLicenses, type AdminLicenseRow } from '@/features/licenses/license-service';
 import { FileKey } from 'lucide-react';
+
+type AdminLicenseCapability = AdminLicenseRow['capabilities'][number];
 
 const nav = [
   { href: '/admin', label: 'Dashboard' },
@@ -16,7 +18,7 @@ const nav = [
 export default async function AdminLicensesPage() {
   await requireAdmin();
   const hasDb = !!process.env.DATABASE_URL;
-  const { licenses, total } = hasDb ? await listAllLicenses({ page: 1, pageSize: 50 }) : { licenses: [], total: 0 };
+  const { licenses, total }: { licenses: AdminLicenseRow[]; total: number } = hasDb ? await listAllLicenses({ page: 1, pageSize: 50 }) : { licenses: [], total: 0 };
 
   return (
     <PortalShell title="License Management" description="Issue, reissue, renew, suspend, and inspect immutable license revisions. Customer endpoints cannot call the signer." nav={nav}>
@@ -52,7 +54,7 @@ export default async function AdminLicensesPage() {
                     <td className="px-4 py-3 font-mono text-xs text-slate-200">{license.id.slice(0, 16)}…</td>
                     <td className="px-4 py-3 text-slate-300 text-xs">{license.customer?.name ?? license.customer?.email ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-300 text-xs">{license.edition?.product?.name} {license.edition?.name}</td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{license.capabilities?.map((c) => c.capability.key).join(', ') || '—'}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">{license.capabilities?.map((c: AdminLicenseCapability) => c.capability.key).join(', ') || '—'}</td>
                     <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(license.status)} label={license.status} /></td>
                     <td className="px-4 py-3 text-slate-300 text-xs">v{license.currentRevision}</td>
                     <td className="px-4 py-3 text-slate-400 text-xs">{new Date(license.createdAt).toLocaleDateString()}</td>

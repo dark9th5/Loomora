@@ -2,6 +2,20 @@ import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import { logAuditEvent } from '@/features/audit/audit-service';
 import { normalizeEmail, roleForVerifiedEmail, assertFinalSuperAdminProtected, type Role } from '@/lib/portal/rbac';
+import type { Prisma } from '@prisma/client';
+
+export type AdminUserRow = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    email: true;
+    normalizedEmail: true;
+    role: true;
+    disabledAt: true;
+    lastLoginAt: true;
+    createdAt: true;
+  };
+}>;
 
 export async function getSessionUser(userId: string) {
   if (!process.env.DATABASE_URL) return null;
@@ -24,7 +38,7 @@ export async function listUsers(params: {
   pageSize?: number;
   search?: string;
   role?: Role;
-}) {
+}): Promise<{ users: AdminUserRow[]; total: number }> {
   if (!process.env.DATABASE_URL) return { users: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);

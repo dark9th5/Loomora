@@ -3,8 +3,10 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireSession } from '@/lib/portal/authz';
-import { listOrdersByCustomer } from '@/features/orders/order-service';
+import { listOrdersByCustomer, type CustomerOrder } from '@/features/orders/order-service';
 import { ShoppingCart } from 'lucide-react';
+
+type OrderItem = CustomerOrder['items'][number];
 
 const nav = [
   { href: '/account', label: 'Dashboard' },
@@ -16,7 +18,7 @@ const nav = [
 export default async function OrdersPage() {
   const session = await requireSession();
   const userId = session.user?.id;
-  const orders = userId && process.env.DATABASE_URL ? await listOrdersByCustomer(userId) : [];
+  const orders: CustomerOrder[] = userId && process.env.DATABASE_URL ? await listOrdersByCustomer(userId) : [];
 
   return (
     <PortalShell title="My Orders" description="View your order history. Payment confirmation is handled manually by an admin — Pro is never granted automatically." nav={nav}>
@@ -48,7 +50,7 @@ export default async function OrdersPage() {
                 <tr key={order.id} className="bg-slate-950/60">
                   <td className="px-4 py-3 font-mono text-xs text-slate-200">{order.id.slice(0, 12)}…</td>
                   <td className="px-4 py-3 text-slate-300">
-                    {order.items.map((item) => `${item.edition?.product?.name ?? ''} ${item.edition?.name ?? ''}`).join(', ')}
+                    {order.items.map((item: OrderItem) => `${item.edition?.product?.name ?? ''} ${item.edition?.name ?? ''}`).join(', ')}
                   </td>
                   <td className="px-4 py-3 text-slate-200">${(order.totalCents / 100).toFixed(2)} {order.currency}</td>
                   <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(order.status)} label={order.status} /></td>

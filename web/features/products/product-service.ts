@@ -1,12 +1,23 @@
 import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import { logAuditEvent } from '@/features/audit/audit-service';
+import type { Prisma } from '@prisma/client';
+
+export type ProductRow = Prisma.ProductGetPayload<{
+  include: { editions: { include: { capabilities: { include: { capability: true } } } } };
+}>;
+
+export type EditionRow = Prisma.EditionGetPayload<{
+  include: { product: true; capabilities: { include: { capability: true } } };
+}>;
+
+export type CapabilityRow = Prisma.CapabilityGetPayload<Record<string, never>>;
 
 // ---------------------------------------------------------------------------
 // Products
 // ---------------------------------------------------------------------------
 
-export async function listProducts() {
+export async function listProducts(): Promise<ProductRow[]> {
   if (!process.env.DATABASE_URL) return [];
   return prisma.product.findMany({
     include: { editions: { include: { capabilities: { include: { capability: true } } } } },
@@ -71,7 +82,7 @@ export async function createEdition(params: {
   return edition;
 }
 
-export async function listEditions(productId?: string) {
+export async function listEditions(productId?: string): Promise<EditionRow[]> {
   if (!process.env.DATABASE_URL) return [];
   const where = productId ? { productId } : {};
   return prisma.edition.findMany({
@@ -112,7 +123,7 @@ export async function createCapability(params: {
   return capability;
 }
 
-export async function listCapabilities() {
+export async function listCapabilities(): Promise<CapabilityRow[]> {
   if (!process.env.DATABASE_URL) return [];
   return prisma.capability.findMany({ orderBy: { key: 'asc' } });
 }

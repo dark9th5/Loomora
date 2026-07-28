@@ -1,5 +1,10 @@
 import 'server-only';
 import { prisma } from '@/lib/db/prisma';
+import type { Prisma } from '@prisma/client';
+
+export type CustomerRow = Prisma.UserGetPayload<{
+  include: { customerProfile: true };
+}>;
 
 export async function getCustomerProfile(userId: string) {
   if (!process.env.DATABASE_URL) return null;
@@ -23,7 +28,7 @@ export async function listCustomers(params: {
   page?: number;
   pageSize?: number;
   search?: string;
-}) {
+}): Promise<{ customers: CustomerRow[]; total: number }> {
   if (!process.env.DATABASE_URL) return { customers: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);

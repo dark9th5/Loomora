@@ -1,7 +1,18 @@
 import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import { logAuditEvent } from '@/features/audit/audit-service';
-import type { TicketStatus } from '@prisma/client';
+import type { Prisma, TicketStatus } from '@prisma/client';
+
+export type CustomerTicket = Prisma.SupportTicketGetPayload<{
+  include: { messages: true };
+}>;
+
+export type AdminTicketRow = Prisma.SupportTicketGetPayload<{
+  include: {
+    customer: { select: { id: true; name: true; email: true } };
+    messages: true;
+  };
+}>;
 
 export async function createTicket(params: {
   customerUserId: string | null;
@@ -67,7 +78,7 @@ export async function updateTicketStatus(params: {
   return ticket;
 }
 
-export async function listTicketsByCustomer(customerUserId: string) {
+export async function listTicketsByCustomer(customerUserId: string): Promise<CustomerTicket[]> {
   if (!process.env.DATABASE_URL) return [];
   return prisma.supportTicket.findMany({
     where: { customerUserId },
@@ -91,7 +102,7 @@ export async function listAllTickets(params: {
   page?: number;
   pageSize?: number;
   status?: TicketStatus;
-}) {
+}): Promise<{ tickets: AdminTicketRow[]; total: number }> {
   if (!process.env.DATABASE_URL) return { tickets: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);

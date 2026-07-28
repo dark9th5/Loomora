@@ -1,8 +1,11 @@
 import { PortalShell } from '@/components/PortalShell';
 import { EmptyState } from '@/components/EmptyState';
 import { requireAdmin } from '@/lib/portal/authz';
-import { listProducts, listCapabilities } from '@/features/products/product-service';
+import { listProducts, listCapabilities, type CapabilityRow, type ProductRow } from '@/features/products/product-service';
 import { Package, Layers, Sparkles } from 'lucide-react';
+
+type ProductEdition = ProductRow['editions'][number];
+type ProductEditionCapability = ProductEdition['capabilities'][number];
 
 const nav = [
   { href: '/admin', label: 'Dashboard' },
@@ -13,7 +16,7 @@ const nav = [
 export default async function AdminProductsPage() {
   await requireAdmin();
   const hasDb = !!process.env.DATABASE_URL;
-  const [products, capabilities] = hasDb ? await Promise.all([listProducts(), listCapabilities()]) : [[], []];
+  const [products, capabilities]: [ProductRow[], CapabilityRow[]] = hasDb ? await Promise.all([listProducts(), listCapabilities()]) : [[], []];
 
   return (
     <PortalShell title="Products, Editions & Capabilities" description="Manage the product catalog. Capabilities use product names only — runtime names (LITERT_LM_PRO, LLAMA_CPP_PRO, GGUF_ACCESS) are forbidden." nav={nav}>
@@ -61,11 +64,11 @@ export default async function AdminProductsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
-                        {product.editions.map((edition) => (
+                        {product.editions.map((edition: ProductEdition) => (
                           <tr key={edition.id} className="bg-slate-950/60">
                             <td className="px-3 py-2 text-xs text-slate-200">{edition.name} <span className="text-slate-500 font-mono">({edition.slug})</span></td>
                             <td className="px-3 py-2 text-xs text-slate-300">${(edition.priceCents / 100).toFixed(2)} {edition.currency}</td>
-                            <td className="px-3 py-2 text-xs text-slate-400">{edition.capabilities.map((c) => c.capability.key).join(', ') || '—'}</td>
+                            <td className="px-3 py-2 text-xs text-slate-400">{edition.capabilities.map((c: ProductEditionCapability) => c.capability.key).join(', ') || '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -80,3 +83,4 @@ export default async function AdminProductsPage() {
     </PortalShell>
   );
 }
+

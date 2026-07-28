@@ -2,6 +2,10 @@ import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import type { Prisma } from '@prisma/client';
 
+export type AuditLogRow = Prisma.AuditLogGetPayload<{
+  include: { actor: { select: { id: true; name: true; email: true } } };
+}>;
+
 export type AuditAction =
   | 'USER_ROLE_CHANGED'
   | 'LICENSE_ISSUED'
@@ -51,7 +55,7 @@ export async function listAuditLogs(params: {
   action?: string;
   entityType?: string;
   actorUserId?: string;
-}) {
+}): Promise<{ logs: AuditLogRow[]; total: number }> {
   if (!process.env.DATABASE_URL) return { logs: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 50, 100);

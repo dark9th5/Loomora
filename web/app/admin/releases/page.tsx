@@ -2,7 +2,7 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireAdmin } from '@/lib/portal/authz';
-import { listAllReleases } from '@/features/downloads/download-service';
+import { listAllReleases, type AppReleaseRow } from '@/features/downloads/download-service';
 import { Package } from 'lucide-react';
 
 const nav = [
@@ -13,7 +13,7 @@ const nav = [
 export default async function AdminReleasesPage() {
   await requireAdmin();
   const hasDb = !!process.env.DATABASE_URL;
-  const { releases, total } = hasDb ? await listAllReleases({ page: 1, pageSize: 50 }) : { releases: [], total: 0 };
+  const { releases, total }: { releases: AppReleaseRow[]; total: number } = hasDb ? await listAllReleases({ page: 1, pageSize: 50 }) : { releases: [], total: 0 };
 
   return (
     <PortalShell title="App Releases" description="Publish Android APK releases. Only published artifacts appear publicly. Never upload the Android signing key." nav={nav}>

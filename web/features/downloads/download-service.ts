@@ -1,7 +1,9 @@
 import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import { logAuditEvent } from '@/features/audit/audit-service';
-import type { ReleaseChannel, ReleaseStatus } from '@prisma/client';
+import type { Prisma, ReleaseChannel, ReleaseStatus } from '@prisma/client';
+
+export type AppReleaseRow = Prisma.AppReleaseGetPayload<Record<string, never>>;
 
 export async function publishRelease(params: {
   actorUserId: string;
@@ -59,7 +61,7 @@ export async function retireRelease(releaseId: string, actorUserId: string) {
   return release;
 }
 
-export async function getPublishedReleases(channel?: ReleaseChannel) {
+export async function getPublishedReleases(channel?: ReleaseChannel): Promise<AppReleaseRow[]> {
   if (!process.env.DATABASE_URL) return [];
   const where: { status: ReleaseStatus; channel?: ReleaseChannel } = { status: 'PUBLISHED' };
   if (channel) where.channel = channel;
@@ -80,7 +82,7 @@ export async function getLatestStableRelease() {
 export async function listAllReleases(params: {
   page?: number;
   pageSize?: number;
-}) {
+}): Promise<{ releases: AppReleaseRow[]; total: number }> {
   if (!process.env.DATABASE_URL) return { releases: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);

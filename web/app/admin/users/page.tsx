@@ -2,7 +2,7 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireSuperAdmin } from '@/lib/portal/authz';
-import { listUsers } from '@/features/auth/auth-service';
+import { listUsers, type AdminUserRow } from '@/features/auth/auth-service';
 import { Users, Shield } from 'lucide-react';
 
 const nav = [
@@ -14,7 +14,7 @@ const nav = [
 export default async function AdminUsersPage() {
   const session = await requireSuperAdmin();
   const hasDb = !!process.env.DATABASE_URL;
-  const { users, total } = hasDb ? await listUsers({ page: 1, pageSize: 50 }) : { users: [], total: 0 };
+  const { users, total }: { users: AdminUserRow[]; total: number } = hasDb ? await listUsers({ page: 1, pageSize: 50 }) : { users: [], total: 0 };
 
   return (
     <PortalShell title="Users & Roles" description="Super Admin only. Promote/demote users. The final active Super Admin cannot be removed or demoted." nav={nav}>

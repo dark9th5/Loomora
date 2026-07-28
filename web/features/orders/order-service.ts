@@ -1,7 +1,19 @@
 import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import { logAuditEvent } from '@/features/audit/audit-service';
-import type { OrderStatus } from '@prisma/client';
+import type { Order, OrderStatus, Prisma } from '@prisma/client';
+
+export type CustomerOrder = Prisma.OrderGetPayload<{
+  include: { items: { include: { edition: { include: { product: true } } } } };
+}>;
+
+export type AdminOrderRow = Prisma.OrderGetPayload<{
+  include: {
+    customer: { select: { id: true; name: true; email: true } };
+    items: { include: { edition: { include: { product: true } } } };
+    payments: true;
+  };
+}>;
 
 // ---------------------------------------------------------------------------
 // Customer-facing
@@ -48,7 +60,7 @@ export async function createOrder(params: {
   return order;
 }
 
-export async function listOrdersByCustomer(customerUserId: string) {
+export async function listOrdersByCustomer(customerUserId: string): Promise<CustomerOrder[]> {
   if (!process.env.DATABASE_URL) return [];
   return prisma.order.findMany({
     where: { customerUserId },
@@ -57,7 +69,13 @@ export async function listOrdersByCustomer(customerUserId: string) {
   });
 }
 
-export async function getOrderById(orderId: string) {
+export async function getOrderById(orderId: string): Promise<Prisma.OrderGetPayload<{
+  include: {
+    customer: { select: { id: true; name: true; email: true } };
+    items: { include: { edition: { include: { product: true } } } };
+    payments: true;
+  };
+}> | null> {
   if (!process.env.DATABASE_URL) return null;
   return prisma.order.findUnique({
     where: { id: orderId },
@@ -77,7 +95,7 @@ export async function listAllOrders(params: {
   page?: number;
   pageSize?: number;
   status?: OrderStatus;
-}) {
+}): Promise<{ orders: AdminOrderRow[]; total: number }> {
   if (!process.env.DATABASE_URL) return { orders: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);

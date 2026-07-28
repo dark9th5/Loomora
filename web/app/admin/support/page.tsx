@@ -2,7 +2,7 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireAdmin } from '@/lib/portal/authz';
-import { listAllTickets } from '@/features/support/support-service';
+import { listAllTickets, type AdminTicketRow } from '@/features/support/support-service';
 import { MessageSquare } from 'lucide-react';
 
 const nav = [
@@ -13,7 +13,7 @@ const nav = [
 export default async function AdminSupportPage() {
   await requireAdmin();
   const hasDb = !!process.env.DATABASE_URL;
-  const { tickets, total } = hasDb ? await listAllTickets({ page: 1, pageSize: 50 }) : { tickets: [], total: 0 };
+  const { tickets, total }: { tickets: AdminTicketRow[]; total: number } = hasDb ? await listAllTickets({ page: 1, pageSize: 50 }) : { tickets: [], total: 0 };
 
   return (
     <PortalShell title="Support Tickets" description="View and manage all customer support tickets. Reply and update statuses via the API." nav={nav}>

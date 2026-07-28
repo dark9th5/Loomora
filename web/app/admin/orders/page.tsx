@@ -2,8 +2,10 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireAdmin } from '@/lib/portal/authz';
-import { listAllOrders } from '@/features/orders/order-service';
+import { listAllOrders, type AdminOrderRow } from '@/features/orders/order-service';
 import { ShoppingCart } from 'lucide-react';
+
+type AdminOrderItem = AdminOrderRow['items'][number];
 
 const nav = [
   { href: '/admin', label: 'Dashboard' },
@@ -15,7 +17,7 @@ const nav = [
 export default async function AdminOrdersPage() {
   await requireAdmin();
   const hasDb = !!process.env.DATABASE_URL;
-  const { orders, total } = hasDb ? await listAllOrders({ page: 1, pageSize: 50 }) : { orders: [], total: 0 };
+  const { orders, total }: { orders: AdminOrderRow[]; total: number } = hasDb ? await listAllOrders({ page: 1, pageSize: 50 }) : { orders: [], total: 0 };
 
   return (
     <PortalShell title="Orders" description="Manual payment confirmation requires an admin actor, reason, and audit log. The buy button does not auto-grant Pro." nav={nav}>
@@ -42,7 +44,7 @@ export default async function AdminOrdersPage() {
                   <tr key={order.id} className="bg-slate-950/60 hover:bg-slate-900/80 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs text-slate-200">{order.id.slice(0, 12)}…</td>
                     <td className="px-4 py-3 text-slate-300 text-xs">{order.customer?.name ?? order.customer?.email ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-300 text-xs">{order.items?.map((i) => `${i.edition?.product?.name ?? ''} ${i.edition?.name ?? ''}`).join(', ')}</td>
+                    <td className="px-4 py-3 text-slate-300 text-xs">{order.items?.map((i: AdminOrderItem) => `${i.edition?.product?.name ?? ''} ${i.edition?.name ?? ''}`).join(', ')}</td>
                     <td className="px-4 py-3 text-slate-200 text-xs">${(order.totalCents / 100).toFixed(2)} {order.currency}</td>
                     <td className="px-4 py-3"><Badge variant={statusToBadgeVariant(order.status)} label={order.status} /></td>
                     <td className="px-4 py-3 text-slate-400 text-xs">{order.payments?.length ?? 0} record(s)</td>

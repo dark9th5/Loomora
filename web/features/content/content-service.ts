@@ -1,6 +1,7 @@
 import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import { logAuditEvent } from '@/features/audit/audit-service';
+import type { BlogPost, ContactLead } from '@prisma/client';
 
 export async function createBlogPost(params: {
   slug: string;
@@ -73,7 +74,7 @@ export async function listBlogPosts(params: {
   pageSize?: number;
   status?: string;
   publishedOnly?: boolean;
-}) {
+}): Promise<{ posts: BlogPost[]; total: number }> {
   if (!process.env.DATABASE_URL) return { posts: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);
@@ -131,7 +132,7 @@ export async function createContactLead(params: {
 export async function listContactLeads(params: {
   page?: number;
   pageSize?: number;
-}) {
+}): Promise<{ leads: ContactLead[]; total: number }> {
   if (!process.env.DATABASE_URL) return { leads: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);

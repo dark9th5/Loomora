@@ -8,12 +8,31 @@ import {
   type LicensePayload,
   type SignedLicenseEnvelope,
 } from '@/lib/license/contract';
+import type { LicenseRevision, Prisma } from '@prisma/client';
+
+export type CustomerLicense = Prisma.LicenseGetPayload<{
+  include: {
+    edition: { include: { product: true } };
+    capabilities: { include: { capability: true } };
+    deviceBinding: true;
+    revisions: true;
+  };
+}>;
+
+export type AdminLicenseRow = Prisma.LicenseGetPayload<{
+  include: {
+    customer: { select: { id: true; name: true; email: true } };
+    edition: { include: { product: true } };
+    capabilities: { include: { capability: true } };
+    deviceBinding: true;
+  };
+}>;
 
 // ---------------------------------------------------------------------------
 // Query
 // ---------------------------------------------------------------------------
 
-export async function getLicensesByCustomer(customerUserId: string) {
+export async function getLicensesByCustomer(customerUserId: string): Promise<CustomerLicense[]> {
   if (!process.env.DATABASE_URL) return [];
   return prisma.license.findMany({
     where: { customerUserId },
@@ -41,7 +60,7 @@ export async function getLicenseById(licenseId: string) {
   });
 }
 
-export async function getLicenseRevisions(licenseId: string) {
+export async function getLicenseRevisions(licenseId: string): Promise<LicenseRevision[]> {
   if (!process.env.DATABASE_URL) return [];
   return prisma.licenseRevision.findMany({
     where: { licenseId },
@@ -53,7 +72,7 @@ export async function listAllLicenses(params: {
   page?: number;
   pageSize?: number;
   status?: string;
-}) {
+}): Promise<{ licenses: AdminLicenseRow[]; total: number }> {
   if (!process.env.DATABASE_URL) return { licenses: [], total: 0 };
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 20, 100);

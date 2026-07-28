@@ -8,10 +8,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(customApkUrl, { status: 307 });
   }
 
-  // Redirect to the static CDN asset at /downloads/app-release-unsigned.apk
+  // Redirect to the static CDN asset at /downloads/app-release.apk
   // This bypasses Vercel Serverless Function 4.5MB payload limits and streams via Vercel Edge CDN
   const requestUrl = new URL(request.url);
-  const downloadUrl = new URL('/downloads/app-release-unsigned.apk', requestUrl.origin);
+  const downloadUrl = new URL('/downloads/app-release.apk', requestUrl.origin);
 
   return NextResponse.redirect(downloadUrl.toString(), { status: 307 });
 }

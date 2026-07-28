@@ -3,8 +3,10 @@ import { PortalShell } from '@/components/PortalShell';
 import { Badge, statusToBadgeVariant } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { requireSession } from '@/lib/portal/authz';
-import { getLicensesByCustomer } from '@/features/licenses/license-service';
+import { getLicensesByCustomer, type CustomerLicense } from '@/features/licenses/license-service';
 import { FileKey, Download } from 'lucide-react';
+
+type LicenseCapabilityItem = CustomerLicense['capabilities'][number];
 
 const nav = [
   { href: '/account', label: 'Dashboard' },
@@ -16,7 +18,7 @@ const nav = [
 export default async function LicensesPage() {
   const session = await requireSession();
   const userId = session.user?.id;
-  const licenses = userId && process.env.DATABASE_URL ? await getLicensesByCustomer(userId) : [];
+  const licenses: CustomerLicense[] = userId && process.env.DATABASE_URL ? await getLicensesByCustomer(userId) : [];
 
   return (
     <PortalShell title="My Licenses" description="Only licenses owned by your account are shown. Download your signed .license file to import into the Android app." nav={nav}>
@@ -51,7 +53,7 @@ export default async function LicensesPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-slate-300 mb-3">
                 <div>
                   <span className="text-slate-500">Capabilities</span>
-                  <p className="mt-0.5">{license.capabilities.map((c) => c.capability.key).join(', ') || 'N/A'}</p>
+                  <p className="mt-0.5">{license.capabilities.map((c: LicenseCapabilityItem) => c.capability.key).join(', ') || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-slate-500">Revision</span>

@@ -17,7 +17,7 @@ export default function DownloadPage() {
           Download Loomora for Android
         </h1>
         <p className="text-slate-400 light:text-slate-600 text-base max-w-xl mx-auto">
-          Get the signed, production release of Loomora directly or visit Google Play.
+          Get the current internal test APK directly. Production signing and Play Store verification are still separate release steps.
         </p>
       </div>
 
@@ -33,7 +33,7 @@ export default function DownloadPage() {
               Loomora v{env.latestVersion}
             </h2>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Fully standalone APK compiled directly from source. Requires zero Google Play services for core local audio recording.
+              Internal unsigned APK compiled directly from the current source tree. Requires zero Google Play services for core local audio recording.
             </p>
 
             <div className="space-y-2 text-xs text-slate-300">
@@ -59,7 +59,7 @@ export default function DownloadPage() {
               className="w-full inline-flex items-center justify-center space-x-3 px-8 py-4 rounded-full bg-loomora-primary text-white font-bold text-base hover:bg-loomora-primary/90 transition-all shadow-xl shadow-loomora-primary/30"
             >
               <Download className="w-5 h-5" />
-              <span>Download Direct APK ({env.apkSize})</span>
+            <span>Download Internal APK ({env.apkSize})</span>
             </a>
 
             <a
@@ -97,9 +97,9 @@ export default function DownloadPage() {
           </h3>
           <ol className="space-y-3 text-xs text-slate-300 list-decimal pl-4 leading-relaxed">
             <li>Download the APK file to your Android device.</li>
-            <li>Open your device Downloads and tap <code className="bg-slate-900 px-1 py-0.5 rounded text-loomora-secondary">app-release-unsigned.apk</code>.</li>
+            <li>Open your device Downloads and tap <code className="bg-slate-900 px-1 py-0.5 rounded text-loomora-secondary">app-release.apk</code>.</li>
             <li>If prompted by Android, grant temporary permission to &quot;Install from unknown sources&quot; for your browser.</li>
-            <li>Tap Install and open Loomora immediately with zero setup or login required.</li>
+            <li>Tap Install and open Loomora immediately with zero setup or login required. Unsigned/internal builds may not update over a differently signed install.</li>
           </ol>
         </div>
 
