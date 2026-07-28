@@ -26,9 +26,15 @@ class SubscriptionViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        SubscriptionUiState(status = entitlementManager.getEntitlementStatus())
+        SubscriptionUiState()
     )
     val uiState: StateFlow<SubscriptionUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(status = entitlementManager.getEntitlementStatus())
+        }
+    }
 
     fun onActivationInputChanged(input: String) {
         _uiState.value = _uiState.value.copy(activationInput = input, activationMessage = null)
@@ -45,7 +51,7 @@ class SubscriptionViewModel @Inject constructor(
                         isActivating = false,
                         isSuccess = true,
                         status = entitlementManager.getEntitlementStatus(),
-                        activationMessage = "Loomora Pro activated successfully!"
+                        activationMessage = "Offline license activated for ${result.capabilities.size} capability/capabilities."
                     )
                 }
                 is LicenseValidationResult.Invalid -> {

@@ -7,11 +7,14 @@ import com.loomora.core.database.LoomoraDatabase
 import com.loomora.core.database.dao.AnalysisJobDao
 import com.loomora.core.database.dao.AudioSegmentDao
 import com.loomora.core.database.dao.BackgroundJobDao
+import com.loomora.core.database.dao.DiarizationDao
+import com.loomora.core.database.dao.InsightDao
 import com.loomora.core.database.dao.MarkerDao
 import com.loomora.core.database.dao.OfflineModelDao
 import com.loomora.core.database.dao.RecordingDao
 import com.loomora.core.database.dao.TagDao
 import com.loomora.core.database.dao.TranscriptDao
+import com.loomora.core.database.dao.TrialOperationDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,7 +36,14 @@ object DatabaseModule {
             LoomoraDatabase::class.java,
             "loomora.db"
         )
-            .addMigrations(LoomoraMigrations.MIGRATION_1_2, LoomoraMigrations.MIGRATION_2_3)
+            .addMigrations(
+                LoomoraMigrations.MIGRATION_1_2,
+                LoomoraMigrations.MIGRATION_2_3,
+                LoomoraMigrations.MIGRATION_3_4,
+                LoomoraMigrations.MIGRATION_4_5,
+                LoomoraMigrations.MIGRATION_5_6,
+                LoomoraMigrations.MIGRATION_6_7
+            )
             .build()
     }
 
@@ -60,4 +70,13 @@ object DatabaseModule {
 
     @Provides
     fun provideTranscriptDao(database: LoomoraDatabase): TranscriptDao = database.transcriptDao()
+
+    @Provides
+    fun provideDiarizationDao(database: LoomoraDatabase): DiarizationDao = database.diarizationDao()
+
+    @Provides
+    fun provideInsightDao(database: LoomoraDatabase): InsightDao = database.insightDao()
+
+    @Provides
+    fun provideTrialOperationDao(database: LoomoraDatabase): TrialOperationDao = database.trialOperationDao()
 }

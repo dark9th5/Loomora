@@ -258,11 +258,18 @@ class OfflineModelRepositoryTest {
                 pipelineVersion = "v1",
                 requestedOptionsJson = "[]",
                 status = AnalysisJobStatus.QUEUED.name,
+                stage = OfflineAnalysisStage.QUEUED.name,
                 progress = 0f,
                 attempt = 0,
+                workRequestId = null,
+                checkpointRef = null,
                 stageOutputRef = null,
                 modelVersionsJson = "{}",
                 errorCode = null,
+                skipReason = null,
+                fallbackReason = null,
+                startedAt = null,
+                finishedAt = null,
                 createdAt = 1L,
                 updatedAt = 1L
             )

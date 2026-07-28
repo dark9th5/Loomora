@@ -36,19 +36,42 @@ class DefaultOfflineModelCatalog @Inject constructor() {
         ),
         OfflineModelManifest(
             id = "meeting-insights-fixture",
-            version = "1",
+            version = "litertlm-reference-2026-07-28",
             capability = ModelCapability.INSIGHTS,
             runtime = RuntimeKind.LITERT_LM,
             fileName = "model.litertlm",
-            sizeBytes = 1,
-            sha256 = "fixture",
-            minimumRamMb = 512,
+            sizeBytes = -1,
+            sha256 = "model-pack-manifest-required",
+            minimumRamMb = 3072,
             supportedAbis = setOf("arm64-v8a", "x86_64"),
             supportedLanguages = setOf("en", "vi"),
-            licenseName = "Fixture",
+            licenseName = "Model-specific",
             licenseUrl = null,
-            sourceUrl = null,
-            pipelineCompatibility = OfflineAiRuntimeVersions.PIPELINE_VERSION
+            sourceUrl = "https://developers.google.com/edge/litert-lm/android",
+            pipelineCompatibility = OfflineAiRuntimeVersions.INSIGHTS_PIPELINE_VERSION
+        ),
+        OfflineModelManifest(
+            id = "sherpa-onnx-pyannote-3-0-3dspeaker-int8",
+            version = "diarization-models-2026-07-27",
+            capability = ModelCapability.DIARIZATION,
+            runtime = RuntimeKind.SHERPA_ONNX,
+            fileName = "segmentation-pyannote-3.0.onnx",
+            sizeBytes = 1_540_506,
+            sha256 = "d582f4b4c6b48205de7e0643c57df0df5615a3c176189be3fc461e9d18827b5d",
+            minimumRamMb = 2048,
+            supportedAbis = setOf("arm64-v8a", "x86_64"),
+            supportedLanguages = setOf("vi", "en", "multilingual"),
+            licenseName = "Apache-2.0",
+            licenseUrl = "https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE",
+            sourceUrl = "https://k2-fsa.github.io/sherpa/onnx/speaker-diarization/index.html",
+            pipelineCompatibility = OfflineAiRuntimeVersions.DIARIZATION_PIPELINE_VERSION,
+            additionalFiles = listOf(
+                OfflineModelFile(
+                    fileName = "3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
+                    sizeBytes = 28_281_164,
+                    sha256 = "aa3cfc16963a10586a9393f5035d6d6b57e98d358b347f80c2a30bf4f00ceba2"
+                )
+            )
         )
     )
 }

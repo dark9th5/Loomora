@@ -111,6 +111,7 @@ fun RecordingDetailRoute(
         onDismissOperationResult = viewModel::clearOperationResult,
         onStartAiProcessing = viewModel::startAiProcessing,
         onResetAiStatus = viewModel::resetAiStatus,
+        onRenameSpeaker = viewModel::renameSpeaker,
         modifier = modifier
     )
 }
@@ -136,9 +137,11 @@ fun RecordingDetailScreen(
     onDismissOperationResult: () -> Unit,
     onStartAiProcessing: (Boolean) -> Unit,
     onResetAiStatus: () -> Unit,
+    onRenameSpeaker: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
+    var speakerRenameTarget by remember { mutableStateOf<String?>(null) }
     var showConsentDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var pendingDeleteAction by remember { mutableStateOf<DeleteAction?>(null) }
@@ -486,6 +489,19 @@ fun RecordingDetailScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     }
+                                    is AiJobStatus.CompletedWithHeuristicFallback -> {
+                                        Text(
+                                            text = "Transcript & heuristic insights complete",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = status.reason,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                     is AiJobStatus.Failed -> {
                                         ErrorState(
                                             title = "Offline Analysis Failed",
@@ -496,7 +512,91 @@ fun RecordingDetailScreen(
                                     }
                                 }
 
+                                uiState.insights?.let { revision ->
+                                    val insights = revision.insights
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = insights.suggestedTitle,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = insights.summary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    InsightList("Key points", insights.keyPoints)
+                                    InsightList("Decisions", insights.decisions)
+                                    InsightList("Suggestions", insights.suggestions)
+                                    InsightList("Open questions", insights.openQuestions)
+                                    if (insights.actionItems.isNotEmpty()) {
+                                        InsightList(
+                                            title = "Action items",
+                                            values = insights.actionItems.map { item ->
+                                                buildString {
+                                                    append(item.task)
+                                                    item.assignee?.let { append(" • $it") }
+                                                    item.dueDate?.let { append(" • $it") }
+                                                }
+                                            }
+                                        )
+                                    }
+                                    if (insights.chapters.isNotEmpty()) {
+                                        InsightList(
+                                            title = "Topics",
+                                            values = insights.chapters.map { "${formatDuration(it.startMs)} ${it.title}" }
+                                        )
+                                    }
+                                }
+
                                 val transcript = uiState.transcript
+                                val aliasMap = uiState.speakerAliases.associate { it.genericLabel to it.displayName }
+                                val diarization = uiState.diarization
+                                if (diarization != null && diarization.turns.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "Speaker timeline",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Speaker labels are local generic labels. Rename only changes the display name; it does not enroll or identify a person.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    diarization.turns.forEach { turn ->
+                                        OutlinedButton(
+                                            onClick = { onSeekTo(turn.startMs) },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = aliasMap[turn.speakerLabel] ?: turn.speakerLabel,
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    Text(
+                                                        text = "${formatDuration(turn.startMs)} - ${formatDuration(turn.endMs)}" +
+                                                            if (turn.isUncertain || turn.isOverlapped) " • uncertain" else "",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                TextButton(onClick = { speakerRenameTarget = turn.speakerLabel }) {
+                                                    Text(text = "Rename")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 if (transcript != null && transcript.segments.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
@@ -506,6 +606,9 @@ fun RecordingDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     transcript.segments.forEach { segment ->
+                                        val displaySpeaker = segment.speakerLabel?.let { label ->
+                                            label.split(" + ").joinToString(" + ") { aliasMap[it] ?: it }
+                                        }
                                         OutlinedButton(
                                             onClick = { onSeekTo(segment.startMs) },
                                             modifier = Modifier.fillMaxWidth()
@@ -515,7 +618,12 @@ fun RecordingDetailScreen(
                                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
                                                 Text(
-                                                    text = "${formatDuration(segment.startMs)} - ${formatDuration(segment.endMs)}",
+                                                    text = listOfNotNull(
+                                                        "${formatDuration(segment.startMs)} - ${formatDuration(segment.endMs)}",
+                                                        displaySpeaker?.let {
+                                                            if (segment.speakerIsUncertain) "$it uncertain" else it
+                                                        }
+                                                    ).joinToString(" • "),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.primary
                                                 )
@@ -590,6 +698,48 @@ fun RecordingDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
+
+    speakerRenameTarget?.let { genericLabel ->
+        val currentName = uiState.speakerAliases.firstOrNull { it.genericLabel == genericLabel }?.displayName
+            ?: genericLabel
+        var newSpeakerName by remember(genericLabel) { mutableStateOf(currentName) }
+
+        AlertDialog(
+            onDismissRequest = { speakerRenameTarget = null },
+            title = { Text(text = "Rename $genericLabel") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = newSpeakerName,
+                        onValueChange = { newSpeakerName = it },
+                        label = { Text(text = "Display name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "This is only a local display label. It does not enroll, identify, or replace a biometric speaker profile.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRenameSpeaker(genericLabel, newSpeakerName)
+                        speakerRenameTarget = null
+                    }
+                ) {
+                    Text(text = "Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { speakerRenameTarget = null }) {
                     Text(text = "Cancel")
                 }
             }
@@ -682,6 +832,27 @@ private fun OperationResultBanner(
         onRetryClick = onDismiss,
         modifier = modifier
     )
+}
+
+@Composable
+private fun InsightList(
+    title: String,
+    values: List<String>
+) {
+    if (values.isEmpty()) return
+    Spacer(modifier = Modifier.height(10.dp))
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    values.forEach { value ->
+        Text(
+            text = "- $value",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 private enum class DeleteAction {

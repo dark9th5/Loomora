@@ -262,9 +262,14 @@ class OfflineTranscriptionPipelineTest {
             modelRepository = modelRepository,
             analysisJobRepository = AnalysisJobRepository(database.analysisJobDao(), json),
             transcriptRepository = TranscriptRepository(database.transcriptDao()),
+            diarizationRepository = DiarizationRepository(database.diarizationDao(), json),
+            insightRepository = InsightRepository(database.insightDao(), json),
             recordingDao = database.recordingDao(),
             preprocessor = preprocessor,
-            transcriptionEngine = engine
+            transcriptionEngine = engine,
+            diarizationEngine = FakeDiarizationEngine(),
+            meetingInsightEngine = FakeMeetingInsightEngine(),
+            engineLifecycleManager = OfflineEngineLifecycleManager()
         )
     }
 
@@ -383,5 +388,44 @@ class OfflineTranscriptionPipelineTest {
         override suspend fun prepare(sourceFile: File): PreparedTranscriptionAudio {
             return super.prepare(sourceFile).also { lastPrepared = it }
         }
+    }
+
+    private class FakeDiarizationEngine : LocalDiarizationEngine {
+        override suspend fun diarize(input: DiarizationInput): DiarizationOutput {
+            return DiarizationOutput(
+                turns = emptyList(),
+                modelId = input.model.manifest.id,
+                modelVersion = input.model.manifest.version,
+                clusteringSettings = input.clustering,
+                processingDurationMs = 1L,
+                memoryObservationKb = 1L
+            )
+        }
+
+        override fun close() = Unit
+    }
+
+    private class FakeMeetingInsightEngine : LocalMeetingInsightEngine {
+        override suspend fun analyze(input: MeetingInsightInput): MeetingInsightOutput {
+            return MeetingInsightOutput(
+                insights = com.loomora.core.model.AiInsights(
+                    suggestedTitle = "Fixture",
+                    summary = "Fixture summary"
+                ),
+                modelId = input.model?.manifest?.id ?: OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_ID,
+                modelVersion = input.model?.manifest?.version ?: OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_VERSION,
+                promptVersion = OfflineAiRuntimeVersions.INSIGHTS_PROMPT_VERSION,
+                schemaVersion = OfflineAiRuntimeVersions.INSIGHTS_SCHEMA_VERSION,
+                pipelineVersion = OfflineAiRuntimeVersions.INSIGHTS_PIPELINE_VERSION,
+                languageTag = input.languageTag,
+                chunkCheckpoints = emptyList(),
+                modelSizeBytes = 1L,
+                loadTimeMs = 1L,
+                generationTimeMs = 1L,
+                memoryObservationKb = 1L
+            )
+        }
+
+        override fun close() = Unit
     }
 }

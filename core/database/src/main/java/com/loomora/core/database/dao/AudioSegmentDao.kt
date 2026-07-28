@@ -90,7 +90,7 @@ interface AnalysisJobDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertJob(job: AnalysisJobEntity)
 
-    @Query("SELECT * FROM analysis_jobs WHERE status IN ('QUEUED','PREPARING_AUDIO','ENHANCING','DETECTING_SPEECH','TRANSCRIBING','DIARIZING','ALIGNING','SUMMARIZING_CHUNKS','SYNTHESIZING','VALIDATING','CANCEL_REQUESTED') ORDER BY createdAt ASC")
+    @Query("SELECT * FROM analysis_jobs WHERE status IN ('QUEUED','RUNNING','CANCEL_REQUESTED','RETRYABLE_FAILURE') ORDER BY createdAt ASC")
     fun observePendingJobs(): Flow<List<AnalysisJobEntity>>
 
     @Query("SELECT * FROM analysis_jobs WHERE recordingId = :recordingId ORDER BY createdAt DESC")
@@ -99,14 +99,32 @@ interface AnalysisJobDao {
     @Query("SELECT * FROM analysis_jobs WHERE logicalKey = :logicalKey LIMIT 1")
     suspend fun getJobByLogicalKey(logicalKey: String): AnalysisJobEntity?
 
-    @Query("UPDATE analysis_jobs SET status = :status, progress = :progress, stageOutputRef = :stageOutputRef, modelVersionsJson = :modelVersionsJson, errorCode = :errorCode, updatedAt = :updatedAt WHERE id = :id")
+    @Query("SELECT * FROM analysis_jobs WHERE id = :id LIMIT 1")
+    suspend fun getJobById(id: String): AnalysisJobEntity?
+
+    @Query("UPDATE analysis_jobs SET status = :status, stage = :stage, progress = :progress, checkpointRef = :checkpointRef, stageOutputRef = :stageOutputRef, modelVersionsJson = :modelVersionsJson, errorCode = :errorCode, skipReason = :skipReason, fallbackReason = :fallbackReason, startedAt = :startedAt, finishedAt = :finishedAt, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateJobState(
         id: String,
         status: String,
+        stage: String,
         progress: Float,
+        checkpointRef: String?,
         stageOutputRef: String?,
         modelVersionsJson: String,
         errorCode: String?,
+        skipReason: String?,
+        fallbackReason: String?,
+        startedAt: Long?,
+        finishedAt: Long?,
         updatedAt: Long
     )
+
+    @Query("UPDATE analysis_jobs SET workRequestId = :workRequestId, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateWorkRequestId(id: String, workRequestId: String, updatedAt: Long)
+
+    @Query("UPDATE analysis_jobs SET status = 'CANCEL_REQUESTED', updatedAt = :updatedAt WHERE id = :id AND status NOT IN ('COMPLETED','CANCELLED','TERMINAL_FAILURE','INVALIDATED')")
+    suspend fun requestCancel(id: String, updatedAt: Long)
+
+    @Query("UPDATE analysis_jobs SET status = 'QUEUED', stage = 'PREPARING_AUDIO', updatedAt = :updatedAt WHERE status = 'RUNNING'")
+    suspend fun reconcileRunningToQueued(updatedAt: Long)
 }

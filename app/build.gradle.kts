@@ -1,3 +1,4 @@
+﻿import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
@@ -83,10 +84,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -132,6 +129,7 @@ dependencies {
     implementation(project(":core:audio"))
     implementation(project(":core:offlineai"))
     implementation(project(":core:network"))
+    implementation(files("../core/offlineai/libs/sherpa-onnx-1.13.4.aar"))
 
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:home"))
@@ -156,10 +154,18 @@ dependencies {
 
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    implementation(libs.androidx.work.runtime.ktx)
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
     testImplementation(project(":core:testing"))
 
     debugImplementation(libs.compose.ui.tooling)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }

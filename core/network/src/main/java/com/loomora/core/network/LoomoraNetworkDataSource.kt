@@ -7,12 +7,8 @@ interface LoomoraNetworkDataSource {
     suspend fun verifyEntitlement(token: String): Entitlement
 }
 
-class FakeLoomoraNetworkDataSource : LoomoraNetworkDataSource {
+class DisabledLoomoraNetworkDataSource : LoomoraNetworkDataSource {
     override suspend fun verifyEntitlement(token: String): Entitlement {
-        return if (token == "valid-pro-token") {
-            Entitlement(plan = EntitlementPlan.PRO, signedToken = token, isOfflineGraceValid = true)
-        } else {
-            Entitlement(plan = EntitlementPlan.GUEST_FREE, signedToken = null, isOfflineGraceValid = false)
-        }
+        return Entitlement(plan = EntitlementPlan.GUEST_FREE, signedToken = null, isOfflineGraceValid = false)
     }
 }

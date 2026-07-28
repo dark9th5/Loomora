@@ -14,12 +14,21 @@ import com.loomora.core.audio.waveform.WaveformRepository
 import com.loomora.core.database.dao.MarkerDao
 import com.loomora.core.database.entity.MarkerEntity
 import com.loomora.core.model.AiJobStatus
+import com.loomora.core.model.DiarizationRevision
+import com.loomora.core.model.InsightRevision
 import com.loomora.core.model.Recording
 import com.loomora.core.model.RecordingOperationResult
+import com.loomora.core.model.SpeakerAlias
 import com.loomora.core.model.StorageUsageSummary
 import com.loomora.core.model.TranscriptRevision
 import com.loomora.core.model.repository.RecordingRepository
+import com.loomora.core.database.entity.AnalysisJobEntity
+import com.loomora.core.offlineai.AnalysisJobStatus
+import com.loomora.core.offlineai.DiarizationRepository
+import com.loomora.core.offlineai.InsightRepository
+import com.loomora.core.offlineai.OfflineAnalysisStage
 import com.loomora.core.offlineai.OfflineAnalysisCoordinator
+import com.loomora.core.offlineai.OfflineProcessingQueue
 import com.loomora.core.offlineai.TranscriptRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,9 +52,19 @@ data class RecordingDetailUiState(
     val suggestedExportFileName: String = "recording.m4a",
     val waveform: WaveformLoadState = WaveformLoadState.Idle,
     val transcript: TranscriptRevision? = null,
+    val diarization: DiarizationRevision? = null,
+    val insights: InsightRevision? = null,
+    val speakerAliases: List<SpeakerAlias> = emptyList(),
     val exportProgress: Int? = null,
     val operationResult: RecordingOperationResult? = null,
     val shareIntent: Intent? = null
+)
+
+private data class InsightUiBundle(
+    val transcript: TranscriptRevision?,
+    val diarization: DiarizationRevision?,
+    val aliases: List<SpeakerAlias>,
+    val insights: InsightRevision?
 )
 
 @HiltViewModel
@@ -57,7 +76,10 @@ class RecordingDetailViewModel @Inject constructor(
     private val waveformRepository: WaveformRepository,
     val audioPlayerEngine: AudioPlayerEngine,
     val offlineAnalysisCoordinator: OfflineAnalysisCoordinator,
-    private val transcriptRepository: TranscriptRepository
+    private val offlineProcessingQueue: OfflineProcessingQueue,
+    private val transcriptRepository: TranscriptRepository,
+    private val diarizationRepository: DiarizationRepository,
+    private val insightRepository: InsightRepository
 ) : ViewModel() {
 
     private val recordingId: String? = savedStateHandle["recordingId"]
@@ -90,13 +112,39 @@ class RecordingDetailViewModel @Inject constructor(
         if (id != null) transcriptRepository.observeLatestTranscript(id) else flowOf(null)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val diarizationFlow = _recordingIdFlow.flatMapLatest { id ->
+        if (id != null) diarizationRepository.observeLatestDiarization(id) else flowOf(null)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val speakerAliasesFlow = _recordingIdFlow.flatMapLatest { id ->
+        if (id != null) diarizationRepository.observeAliases(id) else flowOf(emptyList())
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val insightsFlow = _recordingIdFlow.flatMapLatest { id ->
+        if (id != null) insightRepository.observeLatestInsight(id) else flowOf(null)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val roomAiJobStatusFlow = _recordingIdFlow.flatMapLatest { id ->
+        if (id != null) {
+            offlineProcessingQueue.observeJobsForRecording(id)
+        } else {
+            flowOf(emptyList())
+        }
+    }.combine(insightsFlow) { jobs, insights ->
+        jobs.toAiJobStatus(insights)
+    }
+
     val uiState: StateFlow<RecordingDetailUiState> = combine(
         combine(
             combine(
                 recordingFlow,
                 markersFlow,
                 audioPlayerEngine.playerState,
-                offlineAnalysisCoordinator.jobStatus,
+                roomAiJobStatusFlow,
                 operationResult
             ) { recording, markers, playerState, aiStatus, currentOperationResult ->
                 RecordingDetailUiState(
@@ -111,9 +159,16 @@ class RecordingDetailViewModel @Inject constructor(
                     operationResult = currentOperationResult
                 )
             },
-            transcriptFlow
-        ) { baseState, currentTranscript ->
-            baseState.copy(transcript = currentTranscript)
+            combine(transcriptFlow, diarizationFlow, speakerAliasesFlow, insightsFlow) { currentTranscript, diarization, aliases, insights ->
+                InsightUiBundle(currentTranscript, diarization, aliases, insights)
+            }
+        ) { baseState, transcriptState ->
+            baseState.copy(
+                transcript = transcriptState.transcript,
+                diarization = transcriptState.diarization,
+                speakerAliases = transcriptState.aliases,
+                insights = transcriptState.insights
+            )
         }.let { baseWithTranscript ->
             combine(
                 baseWithTranscript,
@@ -248,12 +303,62 @@ class RecordingDetailViewModel @Inject constructor(
                 offlineAnalysisCoordinator.resetStatus()
                 return@launch
             }
-            offlineAnalysisCoordinator.processAudio(recording.id, recording.originalFileUri)
+            offlineProcessingQueue.enqueue(recording.id, recording.originalFileUri)
         }
     }
 
     fun resetAiStatus() {
         offlineAnalysisCoordinator.resetStatus()
+    }
+
+    fun renameSpeaker(genericLabel: String, displayName: String) {
+        val id = recordingId ?: return
+        viewModelScope.launch {
+            diarizationRepository.renameSpeaker(id, genericLabel, displayName)
+        }
+    }
+
+    private fun List<AnalysisJobEntity>.toAiJobStatus(insightRevision: InsightRevision?): AiJobStatus {
+        val job = maxByOrNull { it.updatedAt } ?: return AiJobStatus.Idle
+        return when (job.status) {
+            AnalysisJobStatus.QUEUED.name -> AiJobStatus.Queued(job.id)
+            AnalysisJobStatus.RUNNING.name -> AiJobStatus.Processing(job.stage.toStageLabel(), job.progress)
+            AnalysisJobStatus.CANCEL_REQUESTED.name -> AiJobStatus.Processing("Cancelling offline analysis", job.progress)
+            AnalysisJobStatus.CANCELLED.name -> AiJobStatus.Cancelled
+            AnalysisJobStatus.COMPLETED.name -> {
+                val fallbackReason = job.fallbackReason
+                if (fallbackReason != null && insightRevision != null) {
+                    AiJobStatus.CompletedWithHeuristicFallback(
+                        transcript = emptyList(),
+                        insights = insightRevision.insights,
+                        reason = fallbackReason
+                    )
+                } else {
+                    AiJobStatus.Completed(emptyList(), insightRevision?.insights)
+                }
+            }
+            AnalysisJobStatus.RETRYABLE_FAILURE.name,
+            AnalysisJobStatus.TERMINAL_FAILURE.name -> AiJobStatus.Failed(
+                message = job.errorCode ?: "Offline analysis failed.",
+                isRetryable = job.status == AnalysisJobStatus.RETRYABLE_FAILURE.name
+            )
+            else -> AiJobStatus.Idle
+        }
+    }
+
+    private fun String.toStageLabel(): String {
+        return when (this) {
+            OfflineAnalysisStage.PREPARING_AUDIO.name -> "Preparing local audio"
+            OfflineAnalysisStage.TRANSCRIBING.name -> "Transcribing"
+            OfflineAnalysisStage.DIARIZING.name -> "Diarizing speakers"
+            OfflineAnalysisStage.ALIGNING.name -> "Aligning speakers"
+            OfflineAnalysisStage.GENERATING_HEURISTIC_INSIGHTS.name -> "Generating heuristic insights"
+            OfflineAnalysisStage.OPTIONAL_LLM_ENHANCEMENT.name -> "Optional LLM enhancement"
+            OfflineAnalysisStage.VALIDATING.name -> "Validating local outputs"
+            OfflineAnalysisStage.PUBLISHING.name -> "Publishing results"
+            OfflineAnalysisStage.CLEANING_UP.name -> "Cleaning up"
+            else -> "Offline analysis running"
+        }
     }
 
     override fun onCleared() {

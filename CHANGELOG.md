@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-28
+
+- Added P2.6 signed offline license verification with schema-versioned payloads, Ed25519 signatures, keyId-based public key lookup, deterministic canonical payload serialization, product/schema/time/capability/device-binding validation, and fail-closed behavior for paid capabilities.
+- Replaced the fake in-memory `LM-PRO` entitlement path with a DataStore-backed `EntitlementRepository`; legacy fake Pro tokens are now rejected.
+- Added runtime-independent product capabilities such as `OFFLINE_TRANSCRIPTION`, `SPEAKER_DIARIZATION`, `SMART_INSIGHTS`, and `LLM_ENHANCED_INSIGHTS`.
+- Added Room schema version `7` with durable `trial_operations` for logical job key + capability reservation, commit, release, and result revision tracking.
+- Replaced the P2.5 no-op trial reservation port with a durable Room-backed implementation and committed successful worker output using the published revision reference.
+- Updated Subscription UI copy to import a signed offline license envelope instead of accepting fake `LM-PRO` keys.
+- Documented offline license revocation, clock rollback, reinstall, device binding, and tamper limitations in `docs/OFFLINE_LICENSE_LIMITATIONS.md`.
+- Verified `:core:datastore:testDebugUnitTest`, `:core:database:testDebugUnitTest`, `:core:offlineai:testDebugUnitTest`, `:feature:subscription:compileDebugKotlin`, and `:app:assembleDebug`.
+- Added WorkManager-backed offline analysis execution through `OfflineAnalysisWorker` and `OfflineProcessingQueue`.
+- Configured app-level Hilt worker creation with `HiltWorkerFactory`.
+- Extended Room schema to version `6` for explicit analysis job stages, WorkManager IDs, checkpoint refs, skip/fallback reasons, started/finished timestamps, and persisted insight generation/fallback metadata.
+- Added canonical `OfflineProcessingOptions` so logical jobs are keyed by recording, source fingerprint, pipeline version, and canonical requested options.
+- Expanded `AnalysisJobRepository` for idempotent enqueue, cancellation, status/stage updates, WorkManager ID persistence, and stale-running reconciliation.
+- Added `TrialReservationPort` as the reserve/commit/release integration boundary for the later offline license/trial task.
+- Rewired Recording Detail to enqueue persistent queue work and observe Room job state as source of truth.
+- Preserved heuristic meeting insights as valid production output and persisted `generationMode`, `completionQuality`, and `fallbackReason` on insight revisions.
+- Added focused queue tests for duplicate enqueue, source-fingerprint invalidation, cancel persistence, stale-running reconciliation, and no-op trial reservation behavior.
+- Verified `:core:database:testDebugUnitTest`, `:core:offlineai:testDebugUnitTest`, `:feature:recordingdetail:testDebugUnitTest`, and `:app:assembleDebug`.
+- Verified USB physical-device offline smoke on OPPO `CPH2339` with direct instrumentation: `OK (4 tests)` for real sherpa diarization, heuristic insights, real sherpa Whisper ASR, and AAC/M4A decode/resample.
+
 ## 2026-07-27
 
 - Added `:core:offlineai` as a real offline-processing boundary for local engine contracts, model install state, compatibility checks, lifecycle management, and analysis-job orchestration.
@@ -26,6 +48,10 @@
 - Added a physical-device sherpa Whisper tiny int8 instrumentation smoke test that runs a real local ASR pass against a deterministic WAV fixture.
 - Added recording-detail transcript observation, rendering, and click-to-seek segment behavior.
 - Added offline transcription tests for missing model, short Vietnamese fixture persistence, mixed-language text, corrupt input, cancellation cleanup, retry/idempotency, multi-file model publish, secondary-file checksum failure, and missing-tokens typed failure.
+- Added P2.7 release hardening docs, including final audit report, release checklist, supported device tiers, model manifest report, privacy notes, third-party notices, and website feature matrix.
+- Corrected website and legacy static HTML claims to avoid advertising cloud AI, absolute privacy, enabled speech clarity export, generative insights as complete, or all-device support.
+- Fixed release gate blockers by packaging the local sherpa AAR at the app layer, removing the default WorkManager initializer for Hilt configuration, annotating Media3 Transformer usage with AndroidX `UnstableApi`, and removing the production fake `valid-pro-token` entitlement path.
+- Recorded P2.7 gate evidence: `clean check`, `testDebugUnitTest`, `assembleDebug`, unsigned `assembleRelease`, `:core:audio:lintDebug`, Next.js `web` build, and `:core:offlineai:connectedDebugAndroidTest` on OPPO `CPH2339` pass; production signing validation fails as expected without signing inputs.
 
 ## 2026-07-26
 

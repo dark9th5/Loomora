@@ -59,6 +59,9 @@ interface RecordingDao {
     @Query("UPDATE recordings SET transcriptStatus = :transcriptStatus, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateTranscriptStatus(id: String, transcriptStatus: String, updatedAt: Long)
 
+    @Query("UPDATE recordings SET insightStatus = :insightStatus, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateInsightStatus(id: String, insightStatus: String, updatedAt: Long)
+
     @Query("UPDATE recordings SET title = :title, status = :status, recoveryState = :recoveryState, durationMs = :durationMs, sizeBytes = :sizeBytes, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateRecoveredRecording(
         id: String,

@@ -37,5 +37,7 @@ data class TranscriptSegmentEntity(
     val endMs: Long,
     val rawText: String,
     val normalizedText: String,
-    val speakerLabel: String?
+    val speakerLabel: String?,
+    val speakerConfidence: Float?,
+    val speakerIsUncertain: Boolean
 )

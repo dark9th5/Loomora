@@ -1,55 +1,51 @@
 package com.loomora.core.datastore
 
 import com.loomora.core.model.Capability
+import com.loomora.core.model.EntitlementDecisionCode
 import com.loomora.core.model.EntitlementStatus
 import com.loomora.core.model.LicenseValidationResult
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class EntitlementManager @Inject constructor() {
+class EntitlementManager @Inject constructor(
+    private val entitlementRepository: EntitlementRepository
+) {
+    val remainingTrialUses: Flow<Int> = entitlementRepository.observeEntitlements().map { snapshot ->
+        if (snapshot.licensedCapabilities.isEmpty()) 0 else Int.MAX_VALUE
+    }
 
-    private val _remainingTrialUses = MutableStateFlow(3)
-    val remainingTrialUses: StateFlow<Int> = _remainingTrialUses.asStateFlow()
+    val isProActive: Flow<Boolean> = entitlementRepository.observeEntitlements().map { snapshot ->
+        snapshot.licensedCapabilities.isNotEmpty() && !snapshot.suspiciousClock
+    }
 
-    private val _isProActive = MutableStateFlow(false)
-    val isProActive: StateFlow<Boolean> = _isProActive.asStateFlow()
-
-    fun getEntitlementStatus(): EntitlementStatus {
-        return if (_isProActive.value) {
-            EntitlementStatus.ProActive(expirationTimestamp = System.currentTimeMillis() + 365L * 24 * 3600 * 1000)
-        } else {
-            val uses = _remainingTrialUses.value
-            if (uses > 0) EntitlementStatus.FreeTrial(uses) else EntitlementStatus.Expired
+    suspend fun getEntitlementStatus(): EntitlementStatus {
+        val decision = entitlementRepository.canUse(Capability.SMART_INSIGHTS)
+        return when (decision.code) {
+            EntitlementDecisionCode.GRANTED_LICENSED -> {
+                val snapshot = entitlementRepository.observeEntitlements().first()
+                EntitlementStatus.ProActive(snapshot.licenseExpiresAtEpochMs ?: Long.MAX_VALUE)
+            }
+            EntitlementDecisionCode.GRANTED_FREE,
+            EntitlementDecisionCode.GRANTED_TRIAL -> EntitlementStatus.FreeTrial(0)
+            else -> EntitlementStatus.Expired
         }
     }
 
-    fun isCapabilityGranted(capability: Capability): Boolean {
-        if (capability == Capability.LOCAL_RECORDING) return true // Always free & unlimited!
-        if (_isProActive.value) return true
-        return _remainingTrialUses.value > 0
+    suspend fun isCapabilityGranted(capability: Capability): Boolean {
+        return entitlementRepository.canUse(capability).isGranted
     }
 
-    suspend fun consumeTrialUseOnSuccess() {
-        if (!_isProActive.value && _remainingTrialUses.value > 0) {
-            _remainingTrialUses.value -= 1
-        }
+    suspend fun consumeTrialUseOnSuccess() = Unit
+
+    suspend fun activateLicenseKey(envelopeJson: String): LicenseValidationResult {
+        return entitlementRepository.importLicense(envelopeJson)
     }
 
-    suspend fun activateLicenseKey(key: String): LicenseValidationResult {
-        val trimmed = key.trim()
-        if (trimmed.length < 8) {
-            return LicenseValidationResult.Invalid("License key must be at least 8 characters long.")
-        }
-
-        if (trimmed.contains("PRO", ignoreCase = true) || trimmed.startsWith("LM-")) {
-            _isProActive.value = true
-            return LicenseValidationResult.Valid(expiryTimestamp = System.currentTimeMillis() + 365L * 24 * 3600 * 1000)
-        }
-
-        return LicenseValidationResult.Invalid("Invalid license key format or key expired.")
+    suspend fun removeLicense() {
+        entitlementRepository.removeLicense()
     }
 }

@@ -4,6 +4,16 @@
 *.ap_
 *.aab
 
+# Local database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# CodeGraph & IDE artifacts
+.codegraph/
+window.xml
+
 # Files for the Application Support module
 app/libs/arm64-v8a/
 app/libs/armeabi-v7a/
@@ -50,3 +60,5 @@ web/*.log
 # OS generated files
 .DS_Store
 Thumbs.db
+
+.vercel

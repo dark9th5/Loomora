@@ -11,7 +11,8 @@ enum class ModelCapability {
 
 enum class RuntimeKind {
     SHERPA_ONNX,
-    LITERT_LM
+    LITERT_LM,
+    LLAMA_CPP
 }
 
 enum class ModelInstallState {
@@ -26,7 +27,9 @@ enum class ModelInstallState {
 }
 
 enum class ExecutionBackend {
-    CPU
+    CPU,
+    GPU,
+    NPU
 }
 
 enum class CompatibilityIssue {
@@ -85,13 +88,30 @@ data class OfflineModelRecord(
 
 object OfflineAiRuntimeVersions {
     const val SHERPA_ONNX = "1.13.4"
-    const val LITERT_LM = "0.10.2"
+    const val LITERT_LM = "0.14.0"
     const val PIPELINE_VERSION = "offline-pipeline-v1"
     const val TRANSCRIPTION_PIPELINE_VERSION = "offline-transcription-v1"
+    const val DIARIZATION_PIPELINE_VERSION = "offline-diarization-v1"
+    const val FUSION_PIPELINE_VERSION = "offline-transcript-fusion-v1"
+    const val INSIGHTS_PIPELINE_VERSION = "offline-insights-v1"
+    const val INSIGHTS_PROMPT_VERSION = "meeting-insights-prompt-v1"
+    const val INSIGHTS_SCHEMA_VERSION = "meeting-insights-schema-v1"
+    const val EXTRACTIVE_INSIGHTS_MODEL_ID = "local-extractive-insights"
+    const val EXTRACTIVE_INSIGHTS_MODEL_VERSION = "1"
+    const val HEURISTIC_INSIGHTS_MODEL_ID = "local-heuristic-insights"
+    const val HEURISTIC_INSIGHTS_MODEL_VERSION = "1"
+    const val HYBRID_INSIGHTS_MODEL_ID = "local-hybrid-insights"
+    const val HYBRID_INSIGHTS_MODEL_VERSION = "1"
 }
 
 enum class AnalysisJobStatus {
     QUEUED,
+    RUNNING,
+    CANCELLED,
+    COMPLETED,
+    RETRYABLE_FAILURE,
+    TERMINAL_FAILURE,
+    INVALIDATED,
     PREPARING_AUDIO,
     ENHANCING,
     DETECTING_SPEECH,
@@ -101,9 +121,34 @@ enum class AnalysisJobStatus {
     SUMMARIZING_CHUNKS,
     SYNTHESIZING,
     VALIDATING,
-    COMPLETED,
     CANCEL_REQUESTED,
-    CANCELLED,
-    RETRYABLE_FAILURE,
-    TERMINAL_FAILURE
+    PUBLISHING,
+    CLEANING_UP
+}
+
+enum class OfflineAnalysisStage {
+    QUEUED,
+    PREPARING_AUDIO,
+    ENHANCING,
+    DETECTING_SPEECH,
+    TRANSCRIBING,
+    DIARIZING,
+    ALIGNING,
+    GENERATING_HEURISTIC_INSIGHTS,
+    OPTIONAL_LLM_ENHANCEMENT,
+    VALIDATING,
+    PUBLISHING,
+    CLEANING_UP
+}
+
+enum class InsightGenerationMode {
+    HEURISTIC,
+    LLM_ENHANCED,
+    HEURISTIC_FALLBACK
+}
+
+enum class InsightCompletionQuality {
+    EXTRACTIVE_ONLY,
+    ENHANCED,
+    DEGRADED_BUT_VALID
 }

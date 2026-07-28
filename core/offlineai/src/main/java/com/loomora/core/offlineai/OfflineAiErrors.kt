@@ -10,5 +10,7 @@ sealed class OfflineAiException(message: String) : Exception(message) {
     data object ImportInterrupted : OfflineAiException("Model import was interrupted.")
     data object ProcessingCancelled : OfflineAiException("Offline processing was cancelled.")
     data object ModelInitializationFailed : OfflineAiException("Offline model could not be initialized.")
+    data object InsightParseFailed : OfflineAiException("Local insight output could not be parsed or validated.")
+    data object InsightSemanticInvalid : OfflineAiException("Local insight output is semantically invalid.")
     data object ProcessingUnavailable : OfflineAiException("Offline processing foundation is not fully installed yet.")
 }

@@ -7,12 +7,12 @@ import org.junit.Test
 
 class LoomoraNetworkDataSourceTest {
 
-    private val networkDataSource = FakeLoomoraNetworkDataSource()
+    private val networkDataSource = DisabledLoomoraNetworkDataSource()
 
     @Test
-    fun verifyEntitlement_validTokenReturnsPro() = runTest {
-        val result = networkDataSource.verifyEntitlement("valid-pro-token")
-        assertEquals(EntitlementPlan.PRO, result.plan)
+    fun verifyEntitlement_anyTokenReturnsGuestFree() = runTest {
+        val result = networkDataSource.verifyEntitlement("any-token")
+        assertEquals(EntitlementPlan.GUEST_FREE, result.plan)
     }
 
     @Test

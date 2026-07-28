@@ -30,3 +30,11 @@ Date: 2026-07-27
 - Gradle `connectedDebugAndroidTest` had one stale failure from an earlier `UiAutomation` copy helper and one transient system-abort/ADB instability while the device was recovering; direct Wi-Fi instrumentation later passed with `OK (1 test)`.
 - Gradle reports deprecated features that will be incompatible with Gradle 9.0.
 - A lint/Kotlin FIR crash was observed on a top-level test fake DAO; the immediate test shape was fixed, but dependency/toolchain upgrades should watch for recurrence.
+- P2.5 persistent queue has unit/build coverage, but still needs a physical process-kill/reboot smoke test to verify WorkManager + Room reconciliation behavior outside Robolectric.
+- P2.5 does not yet show a foreground long-running progress notification with a notification cancel action; cancellation is persisted through the queue boundary and UI path, but notification UX remains a follow-up.
+- P2.6 offline license verification cannot provide immediate revocation; it relies on signed validity windows until an online refresh/revocation path exists.
+- P2.6 clock rollback detection is best effort using last-seen wall clock and cannot prove trusted time while fully offline.
+- P2.6 local license/trial persistence is not tamper-proof DRM. Keystore hardening may improve resistance later, but offline client-side state cannot be absolute.
+- P2.6 signed-license UI currently accepts/pastes envelope JSON through the existing activation text field; QR/file SAF import affordances remain a follow-up.
+- P2.7 release audit is not production release-ready only because production signing inputs are not configured in this workspace and a signed production APK has not been smoke-tested.
+- Release APK size is large because sherpa native runtime libraries are packaged for multiple ABIs; model packs are not bundled, but distribution/ABI split strategy still needs release review.

@@ -21,11 +21,18 @@ data class AnalysisJobEntity(
     val pipelineVersion: String,
     val requestedOptionsJson: String,
     val status: String,
+    val stage: String,
     val progress: Float,
     val attempt: Int,
+    val workRequestId: String?,
+    val checkpointRef: String?,
     val stageOutputRef: String?,
     val modelVersionsJson: String,
     val errorCode: String?,
+    val skipReason: String?,
+    val fallbackReason: String?,
+    val startedAt: Long?,
+    val finishedAt: Long?,
     val createdAt: Long,
     val updatedAt: Long
 )

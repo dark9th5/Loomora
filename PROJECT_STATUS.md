@@ -100,9 +100,92 @@ P2 Offline AI foundation.
   - Verified visible Settings UI/SAF import on the physical OPPO `CPH2339`: selecting the generated multilingual model pack from Downloads changed the transcription model state to `READY`.
   - Fixed imported-model native loading by using a null sherpa `AssetManager` for absolute app-storage model paths.
   - Settings model import now prefers zip/model-pack MIME types in the SAF picker.
+- P2.3 offline speaker diarization and transcript fusion:
+  - Added Room schema version `4` with diarization revisions, speaker turns, speaker aliases, and transcript speaker confidence/uncertainty metadata.
+  - Added `DiarizationRepository` with stable revision/turn IDs, clustering settings persistence, and retry/idempotent replacement.
+  - Wired sherpa-onnx official Android diarization API through `SherpaOnnxDiarizationEngine` using pyannote segmentation config, speaker embedding extractor config, and fast clustering config.
+  - Added a default diarization catalog entry for the official sherpa pyannote + 3D-Speaker direction.
+  - Extended `OfflineAnalysisCoordinator` to run diarization when a ready diarization model is installed, persist turns, align speakers, and republish a fused transcript revision.
+  - Added deterministic transcript/speaker fusion that splits transcript segments at speaker-turn boundaries, assigns by overlap, and marks ambiguous/overlap cases uncertain or multiple-speaker.
+  - Added recording-detail speaker timeline, click-to-seek speaker turns, and manual generic speaker rename that does not enroll or identify biometric speakers.
+  - Added visible UI limitation copy explaining generic speaker labels and local display-only rename behavior.
+  - Added unit coverage for one speaker, two speakers, short turns, overlap uncertainty, no diarization result, alignment boundaries, retry no duplicates, manual rename, and low-confidence enrollment remaining unassigned.
+  - Generated a local official diarization model pack under `build/diarization-fixtures` from sherpa release assets and added an Android smoke test for the official two-speaker fixture.
+  - Verified real official two-speaker diarization on the physical OPPO `CPH2339` over USB ADB with direct instrumentation: `OK (1 test)`.
+  - Verified `:core:offlineai:testDebugUnitTest`, `:core:database:testDebugUnitTest`, `:feature:recordingdetail:testDebugUnitTest`, and `:app:assembleDebug` locally.
+- P2.4 local meeting insights:
+  - Added LiteRT-LM direct SDK dependency pinned to stable `0.14.0`; this required upgrading the build stack to Kotlin `2.3.0`, KSP `2.3.10`, AGP `8.13.0`, Room `2.8.4`, and Hilt `2.58`, plus migrating Gradle Kotlin JVM target DSL.
+  - Added `LiteRtLmMeetingInsightEngine` using official SDK classes with off-main-thread initialization/generation and explicit session/engine close lifecycle.
+  - After real-device LiteRT-LM testing failed the reliability bar, switched the default production insight path to `HeuristicMeetingInsightEngine`, a local/offline structured insight engine with no network and no model file requirement.
+  - Added multi-implementation `LocalMeetingInsightEngine` architecture:
+    - `HeuristicMeetingInsightEngine` is mandatory, deterministic, evidence-based, and runs on every device;
+    - `LlamaCppMeetingInsightEngine` is an optional GGUF boundary for future Qwen2.5 Q4 tiers and must use constrained decoding/GBNF once native inference is wired;
+    - `FallbackMeetingInsightEngine` runs heuristic first and preserves it if optional LLM processing is missing, killed, OOM, or semantically invalid.
+  - LiteRT-LM remains available as an optional legacy experiment behind the same insight boundary, but is not required for P2.4 completion.
+  - Added CPU default backend policy with GPU/NPU represented for future fallback configuration.
+  - Added strict meeting-insight JSON parser and validation for evidence segment IDs, action-item null assignee/deadline behavior, and distinct decisions/suggestions/questions.
+  - Added timestamp-preserving transcript chunking and chunk checkpoint models.
+  - Added Room schema version `5` with `insight_revisions` and `insight_chunk_checkpoints`.
+  - Added generated vs user-edited insight revision kinds and repository persistence.
+  - Extended offline coordinator to unload speech engines before insight generation and persist generated insight revisions; missing `.litertlm` no longer blocks insights because the heuristic fallback has a stable model identity.
+  - Added `CompletedWithHeuristicFallback` job state and `COMPLETED_WITH_HEURISTIC_FALLBACK` insight status so optional LLM failure does not mark the whole analysis failed.
+  - Recording detail now observes and renders persisted structured insights, including a completed-with-fallback notice.
+  - Added strict missing-evidence failure, generation timeout policy, and focused unit coverage for cancellation propagation, backend fallback ordering, and close-after-error contract.
+  - Added unit and physical-device smoke coverage for default heuristic insights with valid evidence IDs, decisions, action items, open questions, generation timing, and memory observation.
+  - Added unit coverage that llama.cpp unavailable returns preserved heuristic output with fallback metadata instead of faking LLM success.
+  - Built two local real LiteRT-LM model packs for device acceptance:
+    - Granite 4.0 350M `.litertlm`: `468,209,584` bytes, SHA-256 `c8e9a29493f62b7c44461fb36980987c4c1454c75e95f57ba0539a8edc9dce76`;
+    - functiongemma mobile-actions `.litertlm`: `284,426,240` bytes, SHA-256 `92109695f911d1872fa8ae07c1e3ff0ed70f2c3d1690d410ec6db8587c2ab409`.
+  - Physical OPPO `CPH2339` results:
+    - Granite import/run reached high memory and the test process was killed by OPPO low-memory policy (`o-kill(46)`), with PSS events around `553,657,344` to `630,546,432` bytes before death.
+    - mobile-actions ran to generation with PSS around `294,285,312` bytes on LiteRT-LM `0.8.0`, and around `573,368,320` bytes on LiteRT-LM `0.14.0` with local parse-retry, but failed strict JSON/schema parsing with `OfflineAiException.InsightParseFailed`, so it is not accepted as a meeting-insight model.
+    - Gemma 270M q8 (`307,920,896` bytes, SHA-256 `319218a916a356e4d9729aa362985b853102d5626b7bbdbcb48882fb556aed4e`) produced unusable token noise on LiteRT-LM `0.8.0`; on LiteRT-LM `0.14.0` it produced JSON-like content but with markdown/truncation that still failed strict parsing. A local model retry improved behavior but pushed PSS near `942,238,720` bytes and triggered OPPO low-memory kill.
+    - Compact schema prompting, single-chunk finalization, and JSON assistant-prefill were tested; compact prompting still failed strict parse, and JSON prefill produced only the prefilled `{`.
+  - Verified `:core:offlineai:testDebugUnitTest`, `:core:database:testDebugUnitTest`, `:feature:recordingdetail:testDebugUnitTest`, `:app:assembleDebug`, and `:core:offlineai:assembleDebugAndroidTest` locally.
+  - Verified default heuristic meeting insights on the physical OPPO `CPH2339` in airplane mode with `connectedDebugAndroidTest`: `1 tests`, `0 skipped`, `0 failed`; airplane mode was disabled afterward.
+  - Default heuristic acceptance reports model size `0` bytes, load time `0 ms`, and records generation time plus memory observation in persisted `MeetingInsightOutput` metadata.
+- P2.5 persistent, idempotent offline processing queue:
+  - Added WorkManager/Hilt worker dependencies and configured the app with `HiltWorkerFactory`.
+  - Added `OfflineAnalysisWorker` plus `OfflineProcessingQueue` so Recording Detail enqueues persistent work instead of running the full offline pipeline only in `viewModelScope`.
+  - Room schema version `6` extends `analysis_jobs` with explicit stage, WorkManager ID, checkpoint ref, skip/fallback reason, started/finished timestamps, and stale-running reconciliation support.
+  - Logical job identity now uses `recordingId`, source fingerprint, pipeline version, and canonical requested options.
+  - Added canonical `OfflineProcessingOptions` for idempotent requested-option hashing.
+  - Added a trial reservation boundary (`TrialReservationPort`) with no-op reserve/commit/release behavior reserved for P2.6.
+  - Refactored `AnalysisJobRepository` with idempotent enqueue, job lookup, state updates, cancel request, WorkManager ID persistence, and `RUNNING -> QUEUED` recovery.
+  - Refactored `OfflineAnalysisCoordinator` with a job-aware worker entry point while preserving existing idempotent transcript, diarization, fusion, and insight persistence.
+  - Recording Detail now observes Room job state as source of truth and maps queue statuses/stages to UI states.
+  - Persisted insight revisions now store generation mode, completion quality, and fallback reason so heuristic fallback is durable, not just transient UI state.
+  - Added focused unit coverage for duplicate enqueue, source-fingerprint invalidation, cancel persistence, stale-running reconciliation, and no-op trial reservation behavior.
+  - Verified `:core:database:testDebugUnitTest`, `:core:offlineai:testDebugUnitTest`, `:feature:recordingdetail:testDebugUnitTest`, and `:app:assembleDebug` locally on Tuesday, July 28, 2026.
+  - Verified USB physical-device offline smoke on OPPO `CPH2339` with direct instrumentation: `OK (4 tests)` for real sherpa diarization, heuristic insights, real sherpa Whisper ASR, and AAC/M4A decode/resample.
+- P2.6 offline signed license, capability entitlements, and durable trial:
+  - Replaced fake/in-memory Pro activation with a DataStore-backed `EntitlementRepository` and compatibility `EntitlementManager` wrapper.
+  - Added signed offline license envelopes with schema version `1`, Ed25519 verification, deterministic canonical payload serialization, keyId-based public key lookup, and product/time/capability/device-binding validation.
+  - Embedded only a public verification key for `loomora-prod-2026-01`; no private signing key is stored in the app/repo.
+  - Replaced runtime/model-style entitlement names with product capabilities: `CORE_RECORDING`, `AUDIO_EDITOR`, `OFFLINE_TRANSCRIPTION`, `SPEAKER_DIARIZATION`, `SMART_INSIGHTS`, `LLM_ENHANCED_INSIGHTS`, `MODEL_PACK_STANDARD`, and `MODEL_PACK_ADVANCED`.
+  - Legacy fake `LM-PRO` tokens are now rejected instead of becoming Pro.
+  - Free `CORE_RECORDING` and `AUDIO_EDITOR` decisions remain granted when license verification fails.
+  - Added Room schema version `7` with `trial_operations` keyed by logical job key + product capability.
+  - Replaced the P2.5 no-op trial reservation port with a durable Room-backed implementation that reserves once, commits once with result revision, and releases cancelled/failed reservations.
+  - Subscription UI now asks for a signed license envelope JSON instead of a fake Pro key.
+  - Added tests for valid signed license, payload tamper, legacy fake token rejection, capability subset enforcement, and durable duplicate reservation/commit behavior.
+  - Documented offline revocation, clock rollback, reinstall/backup, device binding, and tamper limitations in `docs/OFFLINE_LICENSE_LIMITATIONS.md`.
+  - Verified `:core:datastore:testDebugUnitTest`, `:core:database:testDebugUnitTest`, `:core:offlineai:testDebugUnitTest`, `:feature:subscription:compileDebugKotlin`, and `:app:assembleDebug` locally on Tuesday, July 28, 2026.
+- P2.7 release hardening, device tiers, and website truthfulness:
+  - Added `FINAL_AUDIT_REPORT.md`, `RELEASE_CHECKLIST.md`, `SUPPORTED_DEVICES.md`, `MODEL_MANIFEST.md`, `PRIVACY.md`, `THIRD_PARTY_NOTICES.md`, and `docs/WEBSITE_FEATURE_MATRIX.md`.
+  - Corrected website and legacy static HTML claims so cloud AI, absolute privacy, deep generative summaries as Available, enabled speech clarity export, and all-device support are not advertised.
+  - Fixed release build blockers found during gates: sherpa local AAR packaging moved to app packaging with compile-only library use; WorkManager startup initializer removed for Hilt on-demand configuration; Media3 Transformer usage annotated with AndroidX `UnstableApi`; production fake `valid-pro-token` entitlement path removed.
+  - Verified `clean check`, `testDebugUnitTest`, `assembleDebug`, `assembleRelease` unsigned, `:core:audio:lintDebug`, and `web` production build locally on Tuesday, July 28, 2026.
+  - Verified `:core:offlineai:connectedDebugAndroidTest` on USB OPPO `CPH2339` Android 12: 4 tests, 0 skipped, 0 failed.
+  - `validateReleaseSigning` correctly fails in this workspace because production signing inputs are absent; publishing a signed release remains blocked.
+  - APK audit found no bundled `.onnx`, `.litertlm`, `.modelpack`, keystore, private-key, `.jks`, or `.keystore` entries in `app-release-unsigned.apk`.
 
 ## Next
 
+- Release hardening: configure production signing outside the repo and smoke-test a signed release APK on a physical device before any production-ready claim.
+- Follow-up hardening: add visible foreground notification/progress/cancel action for long WorkManager analysis jobs and run process-kill/reboot recovery smoke on a physical device.
+- Follow-up hardening: add paste/QR/file SAF import affordances for signed license envelopes and a real production signing-key management process outside the APK.
+- Follow-up hardening: run a visible full-app Settings import and recording-detail timeline pass for the diarization model.
+- Follow-up hardening: wire native llama.cpp GGUF inference with GBNF/constrained decoding, then test Qwen2.5 0.5B Q4 and Qwen2.5 1.5B Q4 tiers before enabling optional LLM enhancement by default.
 - Follow-up hardening: run physical-device verification for larger-model storage handling, Vietnamese/mixed-language ASR quality, and longer recorder-produced AAC/M4A files.
-- Follow-up hardening: run physical-device verification for large-model storage handling, Vietnamese/mixed-language ASR quality, recorder-produced AAC/M4A decode, and airplane-mode behavior.
 - Release hardening later: enable and verify R8 after broader regression coverage.

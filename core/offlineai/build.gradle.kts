@@ -1,3 +1,4 @@
+﻿import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -20,10 +21,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -38,10 +35,12 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(files("libs/sherpa-onnx-1.13.4.aar"))
-    runtimeOnly(libs.litertlm.android)
+    implementation(libs.androidx.work.runtime.ktx)
+    compileOnly(files("libs/sherpa-onnx-1.13.4.aar"))
+    implementation(libs.litertlm.android)
 
     implementation(libs.hilt.android)
+    implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
@@ -56,4 +55,11 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.coroutines.test)
+    androidTestImplementation(files("libs/sherpa-onnx-1.13.4.aar"))
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }

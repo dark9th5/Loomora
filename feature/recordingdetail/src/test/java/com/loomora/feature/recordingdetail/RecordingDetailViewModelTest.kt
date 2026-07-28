@@ -13,9 +13,16 @@ import com.loomora.core.audio.waveform.WaveformRepository
 import com.loomora.core.audio.waveform.WavAudioWaveformDecoder
 import com.loomora.core.database.dao.MarkerDao
 import com.loomora.core.database.dao.RecordingDao
+import com.loomora.core.database.dao.DiarizationDao
+import com.loomora.core.database.dao.InsightDao
 import com.loomora.core.database.dao.TranscriptDao
+import com.loomora.core.database.entity.DiarizationRevisionEntity
+import com.loomora.core.database.entity.InsightChunkCheckpointEntity
+import com.loomora.core.database.entity.InsightRevisionEntity
 import com.loomora.core.database.entity.RecordingEntity
 import com.loomora.core.database.entity.MarkerEntity
+import com.loomora.core.database.entity.SpeakerAliasEntity
+import com.loomora.core.database.entity.SpeakerTurnEntity
 import com.loomora.core.database.entity.TranscriptRevisionEntity
 import com.loomora.core.database.entity.TranscriptSegmentEntity
 import com.loomora.core.model.AiJobStatus
@@ -31,6 +38,15 @@ import com.loomora.core.offlineai.OfflineAnalysisCoordinator
 import com.loomora.core.offlineai.OfflineModelImporter
 import com.loomora.core.offlineai.OfflineModelRepository
 import com.loomora.core.offlineai.AudioTranscriptionPreprocessor
+import com.loomora.core.offlineai.DiarizationInput
+import com.loomora.core.offlineai.DiarizationOutput
+import com.loomora.core.offlineai.DiarizationRepository
+import com.loomora.core.offlineai.InsightRepository
+import com.loomora.core.offlineai.LocalDiarizationEngine
+import com.loomora.core.offlineai.LocalMeetingInsightEngine
+import com.loomora.core.offlineai.MeetingInsightInput
+import com.loomora.core.offlineai.MeetingInsightOutput
+import com.loomora.core.offlineai.OfflineEngineLifecycleManager
 import com.loomora.core.offlineai.SherpaOnnxTranscriptionEngine
 import com.loomora.core.offlineai.TranscriptRepository
 import kotlinx.coroutines.Dispatchers
@@ -114,6 +130,7 @@ private class FakeRecordingDao : RecordingDao {
     override suspend fun renameRecording(id: String, title: String, updatedAt: Long): Int = 1
     override suspend fun updateRecordingStatus(id: String, status: String, durationMs: Long, updatedAt: Long) = Unit
     override suspend fun updateTranscriptStatus(id: String, transcriptStatus: String, updatedAt: Long) = Unit
+    override suspend fun updateInsightStatus(id: String, insightStatus: String, updatedAt: Long) = Unit
     override suspend fun updateRecoveredRecording(id: String, title: String, status: String, recoveryState: String, durationMs: Long, sizeBytes: Long, updatedAt: Long) = Unit
     override suspend fun updateRecoveryFailure(id: String, status: String, recoveryState: String, sizeBytes: Long, updatedAt: Long) = Unit
     override suspend fun softDeleteRecording(id: String, deletedAt: Long, updatedAt: Long): Int = 1
@@ -129,6 +146,72 @@ private class FakeTranscriptDao : TranscriptDao {
     override suspend fun upsertRevision(revision: TranscriptRevisionEntity) = Unit
     override suspend fun insertSegments(segments: List<TranscriptSegmentEntity>) = Unit
     override suspend fun deleteSegmentsForRevision(revisionId: String) = Unit
+}
+
+private class FakeDiarizationDao : DiarizationDao {
+    override fun observeLatestRevision(recordingId: String): Flow<DiarizationRevisionEntity?> = MutableStateFlow(null)
+    override fun observeTurnsForRevision(revisionId: String): Flow<List<SpeakerTurnEntity>> = MutableStateFlow(emptyList())
+    override fun observeAliases(recordingId: String): Flow<List<SpeakerAliasEntity>> = MutableStateFlow(emptyList())
+    override suspend fun getRevisionByIdentity(
+        recordingId: String,
+        sourceFingerprint: String,
+        pipelineVersion: String,
+        modelId: String,
+        modelVersion: String,
+        clusteringSettingsHash: String
+    ): DiarizationRevisionEntity? = null
+    override suspend fun getTurnsForRevisionSync(revisionId: String): List<SpeakerTurnEntity> = emptyList()
+    override suspend fun upsertRevision(revision: DiarizationRevisionEntity) = Unit
+    override suspend fun insertTurns(turns: List<SpeakerTurnEntity>) = Unit
+    override suspend fun deleteTurnsForRevision(revisionId: String) = Unit
+    override suspend fun upsertAlias(alias: SpeakerAliasEntity) = Unit
+}
+
+private class FakeDiarizationEngine : LocalDiarizationEngine {
+    override suspend fun diarize(input: DiarizationInput): DiarizationOutput {
+        return DiarizationOutput(
+            turns = emptyList(),
+            modelId = input.model.manifest.id,
+            modelVersion = input.model.manifest.version,
+            clusteringSettings = input.clustering,
+            processingDurationMs = 0L,
+            memoryObservationKb = null
+        )
+    }
+
+    override fun close() = Unit
+}
+
+private class FakeInsightDao : InsightDao {
+    override fun observeLatestRevision(recordingId: String): Flow<InsightRevisionEntity?> = MutableStateFlow(null)
+    override fun observeLatestGeneratedRevision(recordingId: String): Flow<InsightRevisionEntity?> = MutableStateFlow(null)
+    override fun observeLatestUserEditedRevision(recordingId: String): Flow<InsightRevisionEntity?> = MutableStateFlow(null)
+    override suspend fun getRevisionByIdentity(recordingId: String, transcriptRevisionId: String, pipelineVersion: String, promptVersion: String, schemaVersion: String, modelId: String, modelVersion: String, kind: String): InsightRevisionEntity? = null
+    override suspend fun getCheckpointsForRevision(revisionId: String): List<InsightChunkCheckpointEntity> = emptyList()
+    override suspend fun upsertRevision(revision: InsightRevisionEntity) = Unit
+    override suspend fun insertCheckpoints(checkpoints: List<InsightChunkCheckpointEntity>) = Unit
+    override suspend fun deleteCheckpointsForRevision(revisionId: String) = Unit
+}
+
+private class FakeMeetingInsightEngine : LocalMeetingInsightEngine {
+    override suspend fun analyze(input: MeetingInsightInput): MeetingInsightOutput {
+        return MeetingInsightOutput(
+            insights = com.loomora.core.model.AiInsights("Fixture", "Fixture summary"),
+            modelId = input.model?.manifest?.id ?: com.loomora.core.offlineai.OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_ID,
+            modelVersion = input.model?.manifest?.version ?: com.loomora.core.offlineai.OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_VERSION,
+            promptVersion = com.loomora.core.offlineai.OfflineAiRuntimeVersions.INSIGHTS_PROMPT_VERSION,
+            schemaVersion = com.loomora.core.offlineai.OfflineAiRuntimeVersions.INSIGHTS_SCHEMA_VERSION,
+            pipelineVersion = com.loomora.core.offlineai.OfflineAiRuntimeVersions.INSIGHTS_PIPELINE_VERSION,
+            languageTag = input.languageTag,
+            chunkCheckpoints = emptyList(),
+            modelSizeBytes = 1L,
+            loadTimeMs = 1L,
+            generationTimeMs = 1L,
+            memoryObservationKb = 1L
+        )
+    }
+
+    override fun close() = Unit
 }
 
 private class FakeRecordingStorageManager : RecordingStorageManager(
@@ -239,6 +322,34 @@ class RecordingDetailViewModelTest {
         repository: FakeRecordingRepository = FakeRecordingRepository(),
         storageManager: FakeRecordingStorageManager = FakeRecordingStorageManager()
     ): RecordingDetailViewModel {
+        val analysisJobRepository = AnalysisJobRepository(
+            analysisJobDao = object : com.loomora.core.database.dao.AnalysisJobDao {
+                override suspend fun upsertJob(job: com.loomora.core.database.entity.AnalysisJobEntity) = Unit
+                override fun observePendingJobs(): Flow<List<com.loomora.core.database.entity.AnalysisJobEntity>> = MutableStateFlow(emptyList())
+                override fun observeJobsForRecording(recordingId: String): Flow<List<com.loomora.core.database.entity.AnalysisJobEntity>> = MutableStateFlow(emptyList())
+                override suspend fun getJobByLogicalKey(logicalKey: String): com.loomora.core.database.entity.AnalysisJobEntity? = null
+                override suspend fun getJobById(id: String): com.loomora.core.database.entity.AnalysisJobEntity? = null
+                override suspend fun updateJobState(
+                    id: String,
+                    status: String,
+                    stage: String,
+                    progress: Float,
+                    checkpointRef: String?,
+                    stageOutputRef: String?,
+                    modelVersionsJson: String,
+                    errorCode: String?,
+                    skipReason: String?,
+                    fallbackReason: String?,
+                    startedAt: Long?,
+                    finishedAt: Long?,
+                    updatedAt: Long
+                ) = Unit
+                override suspend fun updateWorkRequestId(id: String, workRequestId: String, updatedAt: Long) = Unit
+                override suspend fun requestCancel(id: String, updatedAt: Long) = Unit
+                override suspend fun reconcileRunningToQueued(updatedAt: Long) = Unit
+            },
+            json = Json { ignoreUnknownKeys = true }
+        )
         return RecordingDetailViewModel(
             savedStateHandle = SavedStateHandle(mapOf("recordingId" to "rec-1")),
             recordingRepository = repository,
@@ -272,23 +383,24 @@ class RecordingDetailViewModelTest {
                     catalog = DefaultOfflineModelCatalog(),
                     json = Json { ignoreUnknownKeys = true }
                 ),
-                analysisJobRepository = AnalysisJobRepository(
-                    analysisJobDao = object : com.loomora.core.database.dao.AnalysisJobDao {
-                        override suspend fun upsertJob(job: com.loomora.core.database.entity.AnalysisJobEntity) = Unit
-                        override fun observePendingJobs(): Flow<List<com.loomora.core.database.entity.AnalysisJobEntity>> = MutableStateFlow(emptyList())
-                        override fun observeJobsForRecording(recordingId: String): Flow<List<com.loomora.core.database.entity.AnalysisJobEntity>> = MutableStateFlow(emptyList())
-                        override suspend fun getJobByLogicalKey(logicalKey: String): com.loomora.core.database.entity.AnalysisJobEntity? = null
-                        override suspend fun updateJobState(id: String, status: String, progress: Float, stageOutputRef: String?, modelVersionsJson: String, errorCode: String?, updatedAt: Long) = Unit
-                    },
-                    json = Json { ignoreUnknownKeys = true }
-                ),
+                analysisJobRepository = analysisJobRepository,
                 transcriptRepository = TranscriptRepository(FakeTranscriptDao()),
+                diarizationRepository = DiarizationRepository(FakeDiarizationDao(), Json { ignoreUnknownKeys = true }),
+                insightRepository = InsightRepository(FakeInsightDao(), Json { ignoreUnknownKeys = true }),
                 recordingDao = FakeRecordingDao(),
                 preprocessor = AudioTranscriptionPreprocessor(ApplicationProvider.getApplicationContext()),
-                transcriptionEngine = SherpaOnnxTranscriptionEngine(ApplicationProvider.getApplicationContext())
-            )
-            ,
-            transcriptRepository = TranscriptRepository(FakeTranscriptDao())
+                transcriptionEngine = SherpaOnnxTranscriptionEngine(ApplicationProvider.getApplicationContext()),
+                diarizationEngine = FakeDiarizationEngine(),
+                meetingInsightEngine = FakeMeetingInsightEngine(),
+                engineLifecycleManager = OfflineEngineLifecycleManager()
+            ),
+            offlineProcessingQueue = com.loomora.core.offlineai.OfflineProcessingQueue(
+                context = ApplicationProvider.getApplicationContext(),
+                analysisJobRepository = analysisJobRepository
+            ),
+            transcriptRepository = TranscriptRepository(FakeTranscriptDao()),
+            diarizationRepository = DiarizationRepository(FakeDiarizationDao(), Json { ignoreUnknownKeys = true }),
+            insightRepository = InsightRepository(FakeInsightDao(), Json { ignoreUnknownKeys = true })
         )
     }
 }

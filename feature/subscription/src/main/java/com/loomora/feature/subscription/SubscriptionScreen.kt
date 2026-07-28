@@ -214,7 +214,7 @@ fun SubscriptionScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Activate Pro License Key",
+                                text = "Import Signed Offline License",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -222,8 +222,8 @@ fun SubscriptionScreen(
                             OutlinedTextField(
                                 value = uiState.activationInput,
                                 onValueChange = onActivationInputChanged,
-                                label = { Text("License Key (e.g. LM-PRO-XXXX)") },
-                                singleLine = true,
+                                label = { Text("Signed license envelope JSON") },
+                                singleLine = false,
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(12.dp))
@@ -240,7 +240,7 @@ fun SubscriptionScreen(
                                 } else {
                                     Icon(imageVector = Icons.Default.Key, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = "Activate License")
+                                    Text(text = "Verify License")
                                 }
                             }
 

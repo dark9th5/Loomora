@@ -90,7 +90,9 @@ class TranscriptRepository @Inject constructor(
                 endMs = segment.endMs,
                 rawText = segment.rawText,
                 normalizedText = segment.text,
-                speakerLabel = segment.speakerLabel
+                speakerLabel = segment.speakerLabel,
+                speakerConfidence = segment.speakerConfidence,
+                speakerIsUncertain = segment.speakerIsUncertain
             )
         }
         transcriptDao.replaceRevisionSegments(revision, entities)
@@ -143,7 +145,9 @@ class TranscriptRepository @Inject constructor(
             endMs = endMs,
             rawText = rawText,
             text = normalizedText,
-            speakerLabel = speakerLabel
+            speakerLabel = speakerLabel,
+            speakerConfidence = speakerConfidence,
+            speakerIsUncertain = speakerIsUncertain
         )
     }
 

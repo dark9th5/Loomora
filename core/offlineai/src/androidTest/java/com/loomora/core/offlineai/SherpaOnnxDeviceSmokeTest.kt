@@ -10,6 +10,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import android.util.Log
+import com.loomora.core.model.TranscriptRevision
+import com.loomora.core.model.TranscriptSegment
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -97,6 +99,111 @@ class SherpaOnnxDeviceSmokeTest {
             prepared.pcm16kMonoFile.delete()
             sourceM4a.delete()
         }
+    }
+
+    @Test
+    fun pyannote3dSpeaker_diarizesOfficialTwoSpeakerFixtureOffline() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val externalDir = requireNotNull(context.getExternalFilesDir(null))
+        val modelPack = File(externalDir, DIARIZATION_MODEL_PACK_NAME)
+        val sourceWav = File(externalDir, TWO_SPEAKER_FIXTURE_NAME)
+        assertPushedSmokeInput(modelPack)
+        assertPushedSmokeInput(sourceWav)
+
+        val json = Json { ignoreUnknownKeys = true }
+        val checker = object : ModelCompatibilityChecker(context) {
+            override fun evaluate(manifest: OfflineModelManifest): CompatibilityResult {
+                return CompatibilityResult.Compatible(ExecutionBackend.CPU)
+            }
+        }
+        val imported = OfflineModelImporter(context, json, checker)
+            .importModel(Uri.fromFile(modelPack))
+        assertTrue(imported.compatibility is CompatibilityResult.Compatible)
+        val installedPayload = requireNotNull(imported.publishedPayload)
+        val prepared = AudioTranscriptionPreprocessor(context).prepare(sourceWav)
+        try {
+            val output = SherpaOnnxDiarizationEngine(context).diarize(
+                DiarizationInput(
+                    pcm16kMonoFile = prepared.pcm16kMonoFile,
+                    originalAudioFile = sourceWav,
+                    sourceFingerprint = prepared.sourceFingerprint,
+                    model = OfflineModelRecord(
+                        manifest = imported.manifest,
+                        state = ModelInstallState.READY,
+                        installedPath = installedPayload.absolutePath,
+                        installedAt = System.currentTimeMillis(),
+                        lastVerifiedAt = System.currentTimeMillis(),
+                        compatibility = CompatibilityResult.Compatible(ExecutionBackend.CPU)
+                    ),
+                    clustering = DiarizationClusteringSettings()
+                )
+            )
+            Log.i(TAG, "Diarization complete turns=${output.turns.size} labels=${output.turns.map { it.speakerLabel }.distinct()}")
+            assertEquals(imported.manifest.id, output.modelId)
+            assertTrue("Expected real diarization turns", output.turns.isNotEmpty())
+            assertTrue("Expected at least two generic speaker labels", output.turns.map { it.speakerLabel }.distinct().size >= 2)
+
+            val fused = TranscriptSpeakerFusion.fuse(
+                transcript = listOf(
+                    TranscriptSegment(
+                        startMs = output.turns.minOf { it.startMs },
+                        endMs = output.turns.maxOf { it.endMs },
+                        text = "Synthetic transcript spanning the official two speaker fixture."
+                    )
+                ),
+                turns = output.turns
+            )
+            assertTrue("Expected fused speaker timeline", fused.isNotEmpty())
+            assertTrue("Expected fused transcript to carry speaker labels", fused.any { it.speakerLabel != null })
+        } finally {
+            prepared.pcm16kMonoFile.delete()
+        }
+    }
+
+    @Test
+    fun extractiveInsights_generatesMeetingInsightsOffline() = runBlocking {
+        val json = Json { ignoreUnknownKeys = false }
+        val transcript = TranscriptRevision(
+            id = "insight-smoke-revision",
+            recordingId = "insight-smoke-recording",
+            sourceFingerprint = "manual-fixture",
+            pipelineVersion = OfflineAiRuntimeVersions.TRANSCRIPTION_PIPELINE_VERSION,
+            modelId = "manual-transcript",
+            modelVersion = "1",
+            languageTag = "en",
+            createdAt = System.currentTimeMillis(),
+            segments = listOf(
+                TranscriptSegment(id = "s1", startMs = 0L, endMs = 4_000L, text = "Maya says the Android beta is ready for Friday if crash reports stay low."),
+                TranscriptSegment(id = "s2", startMs = 4_000L, endMs = 8_000L, text = "Jon decides to publish the beta on Friday and asks Linh to review the store listing."),
+                TranscriptSegment(id = "s3", startMs = 8_000L, endMs = 12_000L, text = "The team asks whether Vietnamese onboarding copy needs another pass before release.")
+            )
+        )
+
+        val output = HeuristicMeetingInsightEngine(json).analyze(
+            MeetingInsightInput(
+                transcriptRevision = transcript,
+                model = null,
+                languageTag = "en"
+            )
+        )
+
+        Log.i(
+            TAG,
+            "Extractive insights title=${output.insights.suggestedTitle} modelBytes=${output.modelSizeBytes} " +
+                "loadMs=${output.loadTimeMs} generationMs=${output.generationTimeMs} memoryKb=${output.memoryObservationKb}"
+        )
+        assertEquals(OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_ID, output.modelId)
+        assertEquals(0L, output.modelSizeBytes)
+        assertTrue("Expected non-empty generated title", output.insights.suggestedTitle.isNotBlank())
+        assertTrue("Expected non-empty generated summary", output.insights.summary.isNotBlank())
+        assertTrue("Expected evidence IDs from real output", output.insights.evidenceSegmentIds.isNotEmpty())
+        val validIds = transcript.segments.map { it.id }.toSet()
+        assertTrue("Evidence must refer only to transcript segments", output.insights.evidenceSegmentIds.all { it in validIds })
+        assertTrue("Expected extracted decisions", output.insights.decisions.isNotEmpty())
+        assertTrue("Expected extracted action items", output.insights.actionItems.isNotEmpty())
+        assertTrue("Expected extracted open questions", output.insights.openQuestions.isNotEmpty())
+        assertTrue("Expected recorded generation time", output.generationTimeMs >= 0L)
+        assertTrue("Expected memory observation", requireNotNull(output.memoryObservationKb) > 0L)
     }
 
     private fun writeSyntheticAacM4a(target: File) {
@@ -198,6 +305,8 @@ class SherpaOnnxDeviceSmokeTest {
         const val TAG = "LoomoraSherpaSmoke"
         const val MODEL_PACK_NAME = "loomora-whisper-tiny-int8.modelpack.zip"
         const val FIXTURE_NAME = "loomora-whisper-test-0.wav"
+        const val DIARIZATION_MODEL_PACK_NAME = "sherpa-onnx-pyannote-3-0-3dspeaker-int8.modelpack.zip"
+        const val TWO_SPEAKER_FIXTURE_NAME = "two-speakers-en.wav"
         const val BUFFER_TIMEOUT_US = 10_000L
     }
 

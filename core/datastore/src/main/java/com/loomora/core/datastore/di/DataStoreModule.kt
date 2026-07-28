@@ -22,4 +22,5 @@ object DataStoreModule {
     fun provideUserPreferencesDataStore(
         @ApplicationContext context: Context
     ): DataStore<Preferences> = context.userPreferencesDataStore
+
 }

@@ -1,8 +1,19 @@
 package com.loomora.core.offlineai.di
 
 import android.content.Context
+import com.loomora.core.database.dao.TrialOperationDao
+import com.loomora.core.offlineai.FallbackMeetingInsightEngine
+import com.loomora.core.offlineai.HeuristicMeetingInsightEngine
+import com.loomora.core.offlineai.LocalDiarizationEngine
+import com.loomora.core.offlineai.LocalMeetingInsightEngine
 import com.loomora.core.offlineai.LocalTranscriptionEngine
+import com.loomora.core.offlineai.LlamaCppMeetingInsightEngine
+import com.loomora.core.offlineai.LlamaCppRuntime
+import com.loomora.core.offlineai.DurableTrialReservationPort
+import com.loomora.core.offlineai.SherpaOnnxDiarizationEngine
 import com.loomora.core.offlineai.SherpaOnnxTranscriptionEngine
+import com.loomora.core.offlineai.TrialReservationPort
+import com.loomora.core.offlineai.UnavailableLlamaCppRuntime
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.Module
 import dagger.Provides
@@ -30,4 +41,31 @@ object OfflineAiModule {
     ): LocalTranscriptionEngine {
         return SherpaOnnxTranscriptionEngine(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideLocalDiarizationEngine(
+        @ApplicationContext context: Context
+    ): LocalDiarizationEngine {
+        return SherpaOnnxDiarizationEngine(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLocalMeetingInsightEngine(
+        heuristic: HeuristicMeetingInsightEngine,
+        llamaCpp: LlamaCppMeetingInsightEngine
+    ): LocalMeetingInsightEngine {
+        return FallbackMeetingInsightEngine(heuristic, llamaCpp)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLlamaCppRuntime(): LlamaCppRuntime = UnavailableLlamaCppRuntime()
+
+    @Provides
+    @Singleton
+    fun provideTrialReservationPort(
+        trialOperationDao: TrialOperationDao
+    ): TrialReservationPort = DurableTrialReservationPort(trialOperationDao)
 }
