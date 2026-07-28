@@ -28,8 +28,8 @@ Key advantages include:
 - **No Login Wall:** You never need to create an account or verify an email just to record and play audio.
 - **Complete File Ownership:** You can delete, export, or transfer your audio files at any time.
 
-### Explicit Disclosure Before Cloud AI
-When optional AI transcription or smart insights are requested, Loomora requires explicit user consent before transmitting any data over HTTPS. Your core recordings remain untouched locally.
+### On-Device AI Processing
+Current offline transcription, diarization, and extractive insights run on device after the required local models are installed. Future online or generative enhancements must be disclosed separately before they are advertised as available.
     `,
     date: '2026-07-25',
     category: 'Privacy',

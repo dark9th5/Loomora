@@ -21,7 +21,7 @@ export default function PrivacyPage() {
 
         <h3 className="text-lg font-bold text-white">2. Audio Data Processing</h3>
         <p>
-          Audio files are recorded exclusively through your device&apos;s microphone upon explicit user initiation. Audio is never automatically transmitted to external servers. Optional AI transcription and summary generation require explicit user confirmation before any payload is sent over secure HTTPS.
+          Audio files are recorded exclusively through your device&apos;s microphone upon explicit user initiation. Audio is not uploaded for AI processing in the current offline architecture. Transcription, diarization, and extractive insights run on device after required local models are installed.
         </p>
 
         <h3 className="text-lg font-bold text-white">3. Zero Data Sale or Ingestion</h3>

@@ -39,7 +39,7 @@ export default function FeaturesPage() {
             <span>Foreground Service Execution</span>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Active microphone recording is managed by an Android Foreground Service (<code className="bg-slate-950 px-1 py-0.5 rounded text-white">foregroundServiceType=&quot;microphone&quot;</code>) with persistent notifications, preventing OS background process termination during critical long sessions.
+            Active microphone recording is managed by an Android Foreground Service (<code className="bg-slate-950 px-1 py-0.5 rounded text-white">foregroundServiceType=&quot;microphone&quot;</code>) with persistent notifications. Long AI job progress notification hardening remains tracked separately.
           </p>
         </div>
       </div>
@@ -60,7 +60,7 @@ export default function FeaturesPage() {
           </div>
           <h2 className="text-3xl font-bold text-white light:text-slate-900">Non-Destructive Audio Editor</h2>
           <p className="text-slate-300 light:text-slate-600 text-sm leading-relaxed">
-            Trim specific ranges, delete silent sections, and toggle Speech Clarity filters with full Undo/Redo stack history and accessible numerical time inputs.
+            Trim specific ranges and delete selected sections while preserving the original source file. Speech-clarity DSP remains a future hardening item, not an enabled release feature.
           </p>
         </div>
       </div>

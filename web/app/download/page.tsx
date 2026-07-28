@@ -27,7 +27,7 @@ export default function DownloadPage() {
           <div className="space-y-4">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
               <ShieldCheck className="w-4 h-4" />
-              <span>Production Release (Verified Signed APK)</span>
+              <span>Internal test APK while release audit is in progress</span>
             </div>
             <h2 className="text-2xl font-bold text-white light:text-slate-900">
               Loomora v{env.latestVersion}

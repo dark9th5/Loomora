@@ -22,7 +22,7 @@ export default function TermsPage() {
 
         <h3 className="text-lg font-bold text-white">3. Pro License &amp; Entitlements</h3>
         <p>
-          Loomora Pro license keys grant access to premium capabilities (such as cloud AI transcription and smart summaries). Licenses are validated via backend contracts and cached securely for offline grace periods.
+          Loomora Pro signed offline license envelopes grant product capabilities such as offline transcription, speaker diarization, and smart extractive insights when the device and local models support them. Offline licenses cannot be revoked instantly without a future online refresh path; expiration and signed validity windows are enforced locally.
         </p>
 
         <h3 className="text-lg font-bold text-white">4. Limitation of Liability</h3>

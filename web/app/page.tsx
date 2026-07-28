@@ -124,7 +124,7 @@ export default function HomePage() {
                   <span className="font-semibold text-loomora-secondary">AUDIO EDITOR</span>
                   <span className="bg-loomora-primary/20 text-loomora-container px-2 py-0.5 rounded-full font-bold">NON-DESTRUCTIVE</span>
                 </div>
-                <h3 className="text-lg font-bold text-white light:text-slate-900">Trim &amp; Speech Clarity</h3>
+                <h3 className="text-lg font-bold text-white light:text-slate-900">Trim &amp; Safe Export</h3>
                 <p className="text-xs text-slate-400 mt-1">Preserves original raw audio file intact</p>
 
                 <div className="mt-6 space-y-4">
@@ -140,8 +140,8 @@ export default function HomePage() {
                   </div>
 
                   <div className="flex items-center justify-between bg-loomora-primary/10 p-3 rounded-xl border border-loomora-primary/20">
-                    <span className="text-xs font-semibold text-white">Speech Clarity Filter</span>
-                    <div className="w-8 h-4 bg-loomora-primary rounded-full flex items-center justify-end px-0.5">
+                    <span className="text-xs font-semibold text-white">Speech Clarity Follow-up</span>
+                    <div className="w-8 h-4 bg-slate-700 rounded-full flex items-center justify-start px-0.5">
                       <div className="w-3 h-3 bg-white rounded-full" />
                     </div>
                   </div>
@@ -158,10 +158,10 @@ export default function HomePage() {
               <div>
                 <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
                   <span className="font-semibold text-loomora-secondary">SMART INSIGHTS</span>
-                  <span className="bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold">READY</span>
+                  <span className="bg-loomora-primary/20 text-loomora-container px-2 py-0.5 rounded-full font-bold">EXTRACTIVE</span>
                 </div>
                 <h3 className="text-lg font-bold text-white light:text-slate-900">Structured Notes &amp; Tasks</h3>
-                <p className="text-xs text-slate-400 mt-1">Evidence-linked transcript analysis</p>
+                <p className="text-xs text-slate-400 mt-1">Evidence-linked transcript analysis, not deep generative LLM</p>
 
                 <div className="mt-6 space-y-3">
                   <div className="bg-slate-950/60 p-3 rounded-xl border border-white/5">
@@ -176,7 +176,7 @@ export default function HomePage() {
               </div>
 
               <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs text-slate-400">
-                <span>3 Free Trial Uses Left</span>
+                <span>Durable trial accounting</span>
                 <span className="text-loomora-secondary font-bold">View Pro</span>
               </div>
             </div>
@@ -243,8 +243,8 @@ export default function HomePage() {
             </div>
             <div className="space-y-2">
               <CheckCircle className="w-5 h-5 text-loomora-secondary" />
-              <h4 className="font-bold text-white text-base">Foreground Protection</h4>
-              <p className="text-xs text-slate-400">Foreground service prevents system kills during long meetings.</p>
+              <h4 className="font-bold text-white text-base">Persistent Recording Service</h4>
+              <p className="text-xs text-slate-400">Recording uses an Android foreground service; AI job progress notification hardening remains tracked.</p>
             </div>
             <div className="space-y-2">
               <CheckCircle className="w-5 h-5 text-loomora-secondary" />
@@ -299,8 +299,8 @@ export default function HomePage() {
               <div className="text-3xl font-extrabold text-white light:text-slate-900">3 Free Uses <span className="text-sm font-normal text-slate-400">/ auto-enabled</span></div>
               <ul className="space-y-3 text-xs text-slate-300">
                 <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>All Free Plan Features</span></li>
-                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>3 Cloud AI Transcriptions</span></li>
-                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>3 Smart AI Summary Extractions</span></li>
+                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Eligible offline transcription jobs</span></li>
+                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Smart extractive insights with evidence IDs</span></li>
                 <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Idempotent Use Accounting</span></li>
               </ul>
             </div>
@@ -319,9 +319,9 @@ export default function HomePage() {
               </div>
               <div className="text-3xl font-extrabold text-white light:text-slate-900">$4.99 <span className="text-sm font-normal text-slate-400">/ license key</span></div>
               <ul className="space-y-3 text-xs text-slate-300">
-                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Unlimited Cloud AI Transcripts</span></li>
-                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Unlimited Speaker Labels &amp; Action Items</span></li>
-                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Advanced Audio Export Formats</span></li>
+                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Offline transcription capability</span></li>
+                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Beta generic speaker labels &amp; extractive action candidates</span></li>
+                <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Signed offline license envelope</span></li>
                 <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Priority Customer Support</span></li>
               </ul>
             </div>
@@ -346,7 +346,7 @@ export default function HomePage() {
               <span>Are my voice recordings uploaded to the cloud automatically?</span>
             </h4>
             <p className="text-xs text-slate-400 leading-relaxed pl-6">
-              No. Loomora is strictly local-first. Your audio recordings remain stored on your device&apos;s internal storage. Audio is transmitted over HTTPS only when you explicitly tap the Transcribe button and confirm the cloud processing disclosure.
+              No. Current transcription, diarization, and extractive insights run on device after the required local models are installed. Loomora does not upload audio for AI processing in the current offline architecture.
             </p>
           </div>
 
@@ -356,7 +356,7 @@ export default function HomePage() {
               <span>What happens if my AI trial ends or an AI request fails?</span>
             </h4>
             <p className="text-xs text-slate-400 leading-relaxed pl-6">
-              Trial uses are consumed only when an AI request succeeds. If an error occurs, your trial counter is preserved. Furthermore, trial expiration never locks your ability to record, play back, edit, or export local audio files.
+              Trial reservations are committed only after a valid result is published. If a job fails or is cancelled before publish, the reservation is released. Trial or license issues never lock your local recordings.
             </p>
           </div>
 
@@ -366,7 +366,7 @@ export default function HomePage() {
               <span>How does non-destructive editing work?</span>
             </h4>
             <p className="text-xs text-slate-400 leading-relaxed pl-6">
-              Loomora saves edit actions (trims, section deletions, speech clarity filters) in an immutable recipe. When exporting, it creates a new edited audio file without altering your original raw recording.
+              Loomora saves edit actions such as trims and range deletions in an immutable recipe. When exporting, it creates a new edited audio file without altering your original raw recording.
             </p>
           </div>
         </div>
@@ -390,7 +390,7 @@ export default function HomePage() {
               href="/pro"
               className="px-8 py-3.5 rounded-full border border-white/30 text-white font-bold text-sm hover:bg-white/10 transition-colors"
             >
-              Activate Pro Key
+              Signed Offline License
             </Link>
           </div>
         </div>

@@ -24,7 +24,7 @@ export default function BuyProPage() {
           <span>Loomora Pro Activation Handshake</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white light:text-slate-900">
-          Get Your Loomora Pro License Key
+          Get Your Signed Offline License
         </h1>
         <p className="text-slate-400 light:text-slate-600 text-base max-w-xl mx-auto">
           Purchase or request your 8+ character signed license key (e.g., <code className="bg-slate-900 px-1 py-0.5 rounded text-white">LM-PRO-XXXX</code>) to enter directly inside the Android application.
@@ -39,7 +39,7 @@ export default function BuyProPage() {
             <span>License Key Issuance</span>
           </h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Enter your email address below to receive payment instructions or request an early-access Loomora Pro license code.
+            Enter your email address below to request payment instructions or an early-access signed offline license envelope.
           </p>
 
           {requested ? (
@@ -67,7 +67,7 @@ export default function BuyProPage() {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-loomora-primary text-white font-bold text-sm hover:bg-loomora-primary/90 transition-colors shadow-lg shadow-loomora-primary/20"
               >
-                Request Pro License Key ($4.99)
+                Request Signed License ($4.99)
               </button>
             </form>
           )}
@@ -86,8 +86,8 @@ export default function BuyProPage() {
           <ol className="space-y-4 text-xs text-slate-300 list-decimal pl-4 leading-relaxed">
             <li>Receive your unique license key via email (e.g. <code className="bg-slate-900 px-1 py-0.5 rounded text-white">LM-PRO-KEY-1234</code>).</li>
             <li>Open Loomora on your Android device and navigate to <strong>Settings → Pro &amp; Trial</strong>.</li>
-            <li>Paste your key into the <strong>Activate Pro License Key</strong> field and tap Activate.</li>
-            <li>Your app immediately unlocks unlimited cloud AI transcriptions and smart insights!</li>
+            <li>Paste the signed envelope JSON into the <strong>Signed license envelope</strong> field and tap Verify.</li>
+            <li>Your app enables only the product capabilities declared in the signed license and supported by your device/models.</li>
           </ol>
         </div>
       </div>

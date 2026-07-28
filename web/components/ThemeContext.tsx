@@ -15,47 +15,55 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const readStoredTheme = (): Theme => {
+  if (typeof window === 'undefined') return 'dark';
+  return (window.localStorage.getItem('loomora_theme') as Theme | null) ?? 'dark';
+};
+
+const readStoredLanguage = (): Language => {
+  if (typeof window === 'undefined') return 'en';
+  return (window.localStorage.getItem('loomora_lang') as Language | null) ?? 'en';
+};
+
+const applyTheme = (t: Theme) => {
+  const root = document.documentElement;
+  if (t === 'dark') {
+    root.classList.add('dark');
+    root.classList.remove('light');
+  } else if (t === 'light') {
+    root.classList.add('light');
+    root.classList.remove('dark');
+  } else {
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (systemDark) {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+  }
+};
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
-  const [lang, setLangState] = useState<Language>('en');
+  const [theme, setThemeState] = useState<Theme>(readStoredTheme);
+  const [lang, setLangState] = useState<Language>(readStoredLanguage);
 
   useEffect(() => {
-    const savedTheme = (localStorage.getItem('loomora_theme') as Theme) || 'dark';
-    const savedLang = (localStorage.getItem('loomora_lang') as Language) || 'en';
-    setThemeState(savedTheme);
-    setLangState(savedLang);
-    applyTheme(savedTheme);
-  }, []);
+    localStorage.setItem('loomora_theme', theme);
+    applyTheme(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('loomora_lang', lang);
+  }, [lang]);
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem('loomora_theme', t);
-    applyTheme(t);
   };
 
   const setLang = (l: Language) => {
     setLangState(l);
-    localStorage.setItem('loomora_lang', l);
-  };
-
-  const applyTheme = (t: Theme) => {
-    const root = document.documentElement;
-    if (t === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else if (t === 'light') {
-      root.classList.add('light');
-      root.classList.remove('dark');
-    } else {
-      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (systemDark) {
-        root.classList.add('dark');
-        root.classList.remove('light');
-      } else {
-        root.classList.add('light');
-        root.classList.remove('dark');
-      }
-    }
   };
 
   return (

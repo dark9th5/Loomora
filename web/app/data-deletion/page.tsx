@@ -31,9 +31,9 @@ export default function DataDeletionPage() {
           <li>Tap <strong>Clear Storage</strong> (or Clear Data).</li>
         </ol>
 
-        <h3 className="text-lg font-bold text-white">3. Cloud Processing Log Deletion</h3>
+        <h3 className="text-lg font-bold text-white">3. Offline AI Processing Records</h3>
         <p>
-          Optional AI transcription requests process audio transiently over HTTPS. No permanent cloud audio archives are maintained. To request manual verification of support logs, contact <Link href="/contact" className="text-loomora-secondary underline">Loomora Support</Link>.
+          Current AI processing is local/offline after required models are installed. Removing app data deletes local settings, license state, trial records, transcripts, and insight revisions stored by the app. To request help reviewing support data you explicitly sent us, contact <Link href="/contact" className="text-loomora-secondary underline">Loomora Support</Link>.
         </p>
       </div>
     </div>

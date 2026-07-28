@@ -4,14 +4,50 @@ import React, { useState } from 'react';
 import { Mail, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { env } from '@/lib/env';
 
+const topics = ['General Query', 'Licensing', 'Technical Support', 'Billing', 'Feature Request', 'Partnership'];
+
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', subject: 'General Query', message: '' });
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    company: '',
+    topic: topics[0],
+    message: '',
+    consent: false,
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.email && formData.message) {
+    setError(null);
+    setFieldErrors({});
+
+    if (!formData.consent) {
+      setError('You must agree to be contacted regarding your inquiry.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? 'Failed to submit.');
+        if (data.details) setFieldErrors(data.details);
+        return;
+      }
       setSubmitted(true);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,6 +98,10 @@ export default function ContactPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="rounded-lg border border-red-800/50 bg-red-950/30 p-3 text-xs text-red-300">{error}</div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Your Name</label>
                 <input
@@ -72,7 +112,9 @@ export default function ContactPage() {
                   placeholder="Jane Doe"
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-loomora-primary"
                 />
+                {fieldErrors.name && <p className="text-xs text-red-400 mt-1">{fieldErrors.name[0]}</p>}
               </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
                 <input
@@ -83,7 +125,31 @@ export default function ContactPage() {
                   placeholder="jane@example.com"
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-loomora-primary"
                 />
+                {fieldErrors.email && <p className="text-xs text-red-400 mt-1">{fieldErrors.email[0]}</p>}
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Company (optional)</label>
+                <input
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  placeholder="Company name"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-loomora-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Topic</label>
+                <select
+                  value={formData.topic}
+                  onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-xs focus:outline-none focus:border-loomora-primary"
+                >
+                  {topics.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Message</label>
                 <textarea
@@ -94,13 +160,29 @@ export default function ContactPage() {
                   placeholder="Describe your inquiry..."
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-loomora-primary"
                 />
+                {fieldErrors.message && <p className="text-xs text-red-400 mt-1">{fieldErrors.message[0]}</p>}
               </div>
+
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.consent}
+                  onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
+                  className="mt-0.5 rounded border-slate-600 bg-slate-800 text-loomora-primary focus:ring-loomora-primary"
+                  id="consent"
+                />
+                <label htmlFor="consent" className="text-xs text-slate-400">
+                  I agree to be contacted regarding this inquiry. Your data is handled per our Privacy Policy.
+                </label>
+              </div>
+
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-loomora-primary text-white font-bold text-xs hover:bg-loomora-primary/90 transition-colors shadow-lg shadow-loomora-primary/20 flex items-center justify-center space-x-2"
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-loomora-primary text-white font-bold text-xs hover:bg-loomora-primary/90 transition-colors shadow-lg shadow-loomora-primary/20 flex items-center justify-center space-x-2 disabled:opacity-50"
               >
                 <Send className="w-4 h-4" />
-                <span>Submit Message</span>
+                <span>{loading ? 'Submitting...' : 'Submit Message'}</span>
               </button>
             </form>
           )}

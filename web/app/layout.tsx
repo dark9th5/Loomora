@@ -8,12 +8,12 @@ import { env } from '@/lib/env';
 export const metadata: Metadata = {
   metadataBase: new URL(env.siteUrl),
   title: 'Loomora — Smart Voice Recorder & AI Notes for Android',
-  description: 'Record conversations, lectures, and voice notes cleanly. Turn spoken ideas into structured summaries, key points, and action items with 100% offline local privacy guarantee.',
-  keywords: ['Android Voice Recorder', 'AI Notes', 'Local-First Audio', 'Voice Transcription', 'Speech Clarity', 'Meeting Recorder'],
+  description: 'Record conversations, lectures, and voice notes cleanly. After local models are installed, generate transcripts and evidence-linked extractive notes on device.',
+  keywords: ['Android Voice Recorder', 'Local-First Audio', 'Offline Transcription', 'Extractive Meeting Notes', 'Meeting Recorder'],
   authors: [{ name: 'Loomora Team' }],
   openGraph: {
     title: 'Loomora — Smart Voice Recorder & AI Notes for Android',
-    description: '100% Local-first Android voice recorder with smart AI summaries, non-destructive editing, and offline privacy.',
+    description: 'Local-first Android voice recorder with offline transcription, extractive insights, non-destructive editing, and privacy-first defaults.',
     url: env.siteUrl,
     siteName: 'Loomora',
     locale: 'en_US',
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Loomora — Smart Voice Recorder & AI Notes',
-    description: 'Record conversations cleanly on Android. Turn spoken ideas into structured summaries with absolute privacy.',
+    description: 'Record conversations cleanly on Android. Generate local transcripts and evidence-linked extractive notes after required models are installed.',
   },
   robots: {
     index: true,
@@ -46,7 +46,7 @@ export default function RootLayout({
       price: '0.00',
       priceCurrency: 'USD',
     },
-    description: 'Smart Voice Recorder & AI Notes for Android with 100% local-first privacy.',
+    description: 'Smart voice recorder for Android with local-first privacy, offline transcription, and extractive meeting notes.',
   };
 
   return (

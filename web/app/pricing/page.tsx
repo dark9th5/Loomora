@@ -15,7 +15,7 @@ export default function PricingPage() {
           Transparent, Capability-Based Plans
         </h1>
         <p className="text-slate-400 light:text-slate-600 text-base sm:text-lg">
-          Local voice recording and playback remain 100% free and offline forever. Upgrade to Pro for unlimited AI notes and advanced audio exports.
+          Local voice recording and playback remain free and offline. Pro maps to signed product capabilities, not runtime names or cloud processing promises.
         </p>
       </div>
 
@@ -47,8 +47,8 @@ export default function PricingPage() {
             <div className="text-3xl font-extrabold text-white">3 Free Uses</div>
             <ul className="space-y-3 text-xs text-slate-300">
               <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>All Free Plan Capabilities</span></li>
-              <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>3 Cloud AI Transcriptions</span></li>
-              <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>3 Smart AI Summary Extractions</span></li>
+              <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Eligible offline transcription jobs</span></li>
+              <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Smart extractive insights with evidence IDs</span></li>
               <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Idempotent Trial Accounting</span></li>
             </ul>
           </div>
@@ -65,7 +65,8 @@ export default function PricingPage() {
             <p className="text-xs text-slate-400">Unlimited enhancement &amp; AI insights.</p>
             <div className="text-3xl font-extrabold text-white">$4.99 <span className="text-sm font-normal text-slate-400">/ license key</span></div>
             <ul className="space-y-3 text-xs text-slate-300">
-              <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Unlimited AI Transcripts &amp; Speaker Labels</span></li>
+              <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Offline transcription capability</span></li>
+              <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Beta generic speaker labels when a compatible model/device is available</span></li>
               <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Smart AI Summaries &amp; Action Items</span></li>
               <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Advanced Non-Destructive Exports</span></li>
               <li className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-loomora-secondary" /><span>Offline Grace &amp; Priority Support</span></li>
