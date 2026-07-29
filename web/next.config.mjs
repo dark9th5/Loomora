@@ -15,7 +15,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Disposition',
-            value: 'attachment; filename="app-release-unsigned.apk"',
+            value: 'attachment; filename="app-release.apk"',
           },
           {
             key: 'Cache-Control',

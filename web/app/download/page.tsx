@@ -33,7 +33,7 @@ export default function DownloadPage() {
               Loomora v{env.latestVersion}
             </h2>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Internal unsigned APK compiled directly from the current source tree. Requires zero Google Play services for core local audio recording.
+              Internal APK compiled directly from the current source tree and signed for direct installation. Requires zero Google Play services for core local audio recording.
             </p>
 
             <div className="space-y-2 text-xs text-slate-300">

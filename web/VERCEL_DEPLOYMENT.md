@@ -11,11 +11,11 @@ Set the following environment variables in your Vercel Project Settings (**Setti
 | Variable Name | Example Value | Description |
 |---|---|---|
 | `NEXT_PUBLIC_SITE_URL` | `https://loomora.app` | Canonical site URL for SEO & OpenGraph |
-| `NEXT_PUBLIC_APK_URL` | `/api/download` | Direct APK download link (served via Next.js route handler or external URL) |
+| `NEXT_PUBLIC_APK_URL` | `https://github.com/OWNER/REPO/releases/download/v1.0.0/app-release.apk` | Public APK artifact URL. Use GitHub Releases, S3, or a CDN in production; do not rely on `/downloads/app-release.apk` unless the file is actually deployed. |
 | `NEXT_PUBLIC_PLAY_URL` | `https://play.google.com/store/apps/details?id=com.loomora` | Google Play Store URL |
 | `NEXT_PUBLIC_LATEST_VERSION` | `1.0.0` | Production release version |
-| `NEXT_PUBLIC_APK_SIZE` | `14.2 MB` | Compiled APK file size |
-| `NEXT_PUBLIC_APK_SHA256` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | SHA256 checksum for APK integrity |
+| `NEXT_PUBLIC_APK_SIZE` | `179.2 MiB` | Compiled APK file size |
+| `NEXT_PUBLIC_APK_SHA256` | `e9972f0102e3b0cad8d474bd19479b6772c903860d0819d7175071de272c6587` | SHA256 checksum for APK integrity |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | `contact@loomora.app` | Primary contact email |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | `support@loomora.app` | Technical support email |
 
