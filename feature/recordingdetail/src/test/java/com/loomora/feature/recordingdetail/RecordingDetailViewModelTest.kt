@@ -15,6 +15,7 @@ import com.loomora.core.audio.waveform.WaveformRepository
 import com.loomora.core.audio.waveform.WavAudioWaveformDecoder
 import com.loomora.core.database.dao.MarkerDao
 import com.loomora.core.database.dao.RecordingDao
+import com.loomora.core.database.dao.RecordingTaskDao
 import com.loomora.core.database.dao.DiarizationDao
 import com.loomora.core.database.dao.InsightDao
 import com.loomora.core.database.dao.TranscriptDao
@@ -22,6 +23,7 @@ import com.loomora.core.database.entity.DiarizationRevisionEntity
 import com.loomora.core.database.entity.InsightChunkCheckpointEntity
 import com.loomora.core.database.entity.InsightRevisionEntity
 import com.loomora.core.database.entity.RecordingEntity
+import com.loomora.core.database.entity.RecordingTaskEntity
 import com.loomora.core.database.entity.MarkerEntity
 import com.loomora.core.database.entity.SpeakerAliasEntity
 import com.loomora.core.database.entity.SpeakerTurnEntity
@@ -74,6 +76,56 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlinx.serialization.json.Json
+
+private class FakeRecordingTaskDao : RecordingTaskDao {
+    private val tasksFlow = MutableStateFlow<List<RecordingTaskEntity>>(emptyList())
+
+    override fun observeTasksForRecording(recordingId: String): Flow<List<RecordingTaskEntity>> = tasksFlow
+
+    override suspend fun insertGeneratedTasks(tasks: List<RecordingTaskEntity>): List<Long> {
+        val current = tasksFlow.value.toMutableList()
+        val ids = current.map { it.id }.toSet()
+        val newTasks = tasks.filter { it.id !in ids }
+        current.addAll(newTasks)
+        tasksFlow.value = current
+        return newTasks.map { 1L }
+    }
+
+    override suspend fun updateStatus(taskId: String, status: String, completedAt: Long?, updatedAt: Long): Int {
+        tasksFlow.value = tasksFlow.value.map {
+            if (it.id == taskId) it.copy(status = status, completedAt = completedAt, updatedAt = updatedAt) else it
+        }
+        return 1
+    }
+
+    override suspend fun updateSourceMetadata(
+        taskId: String,
+        sourceInsightRevisionId: String?,
+        sourceActionIndex: Int?,
+        sourceGenerationMode: String,
+        updatedAt: Long
+    ): Int = 1
+
+    override suspend fun updateContent(
+        taskId: String,
+        title: String,
+        assignee: String?,
+        dueDate: String?,
+        updatedAt: Long
+    ): Int {
+        tasksFlow.value = tasksFlow.value.map {
+            if (it.id == taskId) it.copy(title = title, assignee = assignee, dueDate = dueDate, isUserEdited = true, updatedAt = updatedAt) else it
+        }
+        return 1
+    }
+
+    override suspend fun archive(taskId: String, updatedAt: Long): Int {
+        tasksFlow.value = tasksFlow.value.map {
+            if (it.id == taskId) it.copy(status = "ARCHIVED", updatedAt = updatedAt) else it
+        }
+        return 1
+    }
+}
 
 private class FakeRecordingRepository : RecordingRepository {
     val recordingFlow = MutableStateFlow(
@@ -342,6 +394,7 @@ class RecordingDetailViewModelTest {
 
     private fun createViewModel(
         repository: FakeRecordingRepository = FakeRecordingRepository(),
+        recordingTaskDao: RecordingTaskDao = FakeRecordingTaskDao(),
         storageManager: FakeRecordingStorageManager = FakeRecordingStorageManager()
     ): RecordingDetailViewModel {
         val analysisJobRepository = AnalysisJobRepository(
@@ -394,6 +447,7 @@ class RecordingDetailViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("recordingId" to "rec-1")),
             context = ApplicationProvider.getApplicationContext(),
             recordingRepository = repository,
+            recordingTaskDao = recordingTaskDao,
             markerDao = FakeMarkerDao(),
             recordingStorageManager = storageManager,
             waveformRepository = WaveformRepository(

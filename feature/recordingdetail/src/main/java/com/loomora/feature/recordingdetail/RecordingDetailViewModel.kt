@@ -513,19 +513,30 @@ class RecordingDetailViewModel @Inject constructor(
             if (title.isBlank()) return@mapIndexedNotNull null
             val assignee = item.assignee?.trim()?.takeIf(String::isNotBlank)
             val dueDate = item.dueDate?.trim()?.takeIf(String::isNotBlank)
-            val normalizedIdentity = listOf(
-                targetRecordingId,
-                normalizeTaskIdentity(title)
-            ).joinToString("|")
+
+            val sortedEvidenceCsv = item.evidenceSegmentIds
+                .filter(String::isNotBlank)
+                .distinct()
+                .sorted()
+                .joinToString(",")
+
+            val identityString = if (sortedEvidenceCsv.isNotBlank()) {
+                "$targetRecordingId|$sortedEvidenceCsv"
+            } else {
+                "$targetRecordingId|${normalizeTaskIdentity(title)}"
+            }
+
+            val taskId = UUID.nameUUIDFromBytes(identityString.toByteArray(Charsets.UTF_8)).toString()
+
             RecordingTaskEntity(
-                id = UUID.nameUUIDFromBytes(normalizedIdentity.toByteArray(Charsets.UTF_8)).toString(),
+                id = taskId,
                 recordingId = targetRecordingId,
                 sourceInsightRevisionId = revision.id,
                 sourceActionIndex = index,
                 title = title,
                 assignee = assignee,
                 dueDate = dueDate,
-                evidenceSegmentIdsCsv = item.evidenceSegmentIds.joinToString(","),
+                evidenceSegmentIdsCsv = sortedEvidenceCsv,
                 sourceGenerationMode = revision.generationMode,
                 createdAt = now + index,
                 updatedAt = now
