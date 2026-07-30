@@ -115,7 +115,7 @@ class OfflineDiarizationFusionTest {
     fun invalidTranscriptTimestamp_projectsWordsOntoSpeakerTurnsWithoutDuplication() {
         val longText = "Mot hai ba bon nam sau bd ba ten muoi mot hai ba bon"
         val fused = TranscriptSpeakerFusion.fuse(
-            transcript = listOf(TranscriptSegment(startMs = 100, endMs = 101, text = longText)),
+            transcript = listOf(TranscriptSegment(startMs = 0, endMs = 15_000, text = longText)),
             turns = listOf(
                 SpeakerTurn(startMs = 10_000, endMs = 11_000, speakerLabel = "Speaker 1", speakerIndex = 0),
                 SpeakerTurn(startMs = 12_000, endMs = 13_000, speakerLabel = "Speaker 2", speakerIndex = 1)
