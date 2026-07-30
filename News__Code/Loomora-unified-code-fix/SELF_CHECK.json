@@ -1,0 +1,17 @@
+{
+  "checks": {
+    "patcher_first_run_ok": true,
+    "patcher_second_run_idempotent_ok": true,
+    "audio_metadata_48k": true,
+    "audio_metadata_mono": true,
+    "language_selector_wired": true,
+    "task_identity_includes_title_assignee": true,
+    "display_rows_wired": true,
+    "action_limit_8": true,
+    "extract_all_wired": true,
+    "new_kotlin_sources_compiled": true,
+    "task_behavior_smoke_test": true
+  },
+  "first_run_stdout": "Đã áp dụng Loomora Unified Code Fix.\nFile thay đổi:\n- core/audio/src/main/java/com/loomora/core/audio/engine/AudioCaptureSpec.kt\n- core/audio/src/main/java/com/loomora/core/audio/engine/AudioRecordEngine.kt\n- core/audio/src/main/java/com/loomora/core/audio/service/AudioRecorderService.kt\n- core/audio/src/test/java/com/loomora/core/audio/engine/AudioCaptureSpecTest.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/ExtractiveMeetingInsightEngine.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/HeuristicActionItemExtractor.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptSpeakerFusion.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptTextSegmenter.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptionModelSelector.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/live/LiveCaptionModels.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/translation/FinalUtteranceTranslationCoordinator.kt\n- core/offlineai/src/main/java/com/loomora/core/offlineai/translation/LocalTranslationEngine.kt\n- core/offlineai/src/test/java/com/loomora/core/offlineai/HeuristicActionItemExtractorTest.kt\n- core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptSpeakerReadabilityTest.kt\n- core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptTextSegmenterTest.kt\n- core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptionModelSelectorTest.kt\n- core/offlineai/src/test/java/com/loomora/core/offlineai/translation/FinalUtteranceTranslationCoordinatorTest.kt\n- feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt\n- feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailViewModel.kt\nBackup: /mnt/data/_loomora_unified_sim_final/.loomora-unified-backup/20260730-105814\n",
+  "second_run_stdout": "Đã áp dụng Loomora Unified Code Fix.\nKhông có thay đổi; bản sửa có thể đã được áp dụng trước đó.\nBackup: /mnt/data/_loomora_unified_sim_final/.loomora-unified-backup/20260730-105815\n"
+}

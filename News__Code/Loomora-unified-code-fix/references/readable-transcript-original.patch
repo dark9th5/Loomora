@@ -1,0 +1,533 @@
+diff --git a/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptSpeakerFusion.kt b/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptSpeakerFusion.kt
+index b7965da..172ada8 100644
+--- a/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptSpeakerFusion.kt
++++ b/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptSpeakerFusion.kt
+@@ -5,8 +5,14 @@ import com.loomora.core.model.TranscriptSegment
+ 
+ object TranscriptSpeakerFusion {
+     private const val MERGE_TRANSCRIPT_GAP_MS = 1_800L
++    private const val MAX_COMPACT_WORDS = 32
++    private const val MAX_COMPACT_CHARS = 260
++    private const val MAX_COMPACT_DURATION_MS = 15_000L
++    private const val MIN_COMPLETE_SENTENCE_WORDS = 12
+     private const val MIN_WORDS_FOR_PROJECTED_TURN = 7
+ 
++    private val terminalPunctuation = Regex("[.!?…;][\\\"'”’)]*$")
++
+     fun fuse(
+         transcript: List<TranscriptSegment>,
+         turns: List<SpeakerTurn>
+@@ -28,18 +34,24 @@ object TranscriptSpeakerFusion {
+         return compact(assigned)
+     }
+ 
+-    /** Also compacts old persisted revisions at display/export time. */
++    /**
++     * Compacts tiny adjacent fragments, but deliberately stops before a speaker's
++     * continuous speech becomes one oversized paragraph. This method is also used
++     * by insight generation, so it does not invent new persisted evidence IDs.
++     */
+     fun compact(transcript: List<TranscriptSegment>): List<TranscriptSegment> {
+         if (transcript.isEmpty()) return emptyList()
+         val result = mutableListOf<TranscriptSegment>()
+         transcript
+             .filter { it.endMs > it.startMs && it.text.isNotBlank() }
+             .sortedWith(compareBy({ it.startMs }, { it.endMs }))
+-            .forEach { next ->
++            .forEach { source ->
++                val next = source.copy(
++                    text = normalize(source.text),
++                    rawText = normalize(source.rawText.ifBlank { source.text })
++                )
+                 val previous = result.lastOrNull()
+-                val sameSpeaker = previous?.speakerLabel == next.speakerLabel
+-                val gap = previous?.let { next.startMs - it.endMs } ?: Long.MAX_VALUE
+-                if (previous != null && sameSpeaker && gap <= MERGE_TRANSCRIPT_GAP_MS) {
++                if (previous != null && canMerge(previous, next)) {
+                     result[result.lastIndex] = previous.copy(
+                         endMs = maxOf(previous.endMs, next.endMs),
+                         text = joinText(previous.text, next.text),
+@@ -48,15 +60,36 @@ object TranscriptSpeakerFusion {
+                         speakerIsUncertain = previous.speakerIsUncertain || next.speakerIsUncertain
+                     )
+                 } else {
+-                    result += next.copy(
+-                        text = normalize(next.text),
+-                        rawText = normalize(next.rawText)
+-                    )
++                    result += next
+                 }
+             }
+         return result
+     }
+ 
++    /**
++     * Readability adapter for UI/export previews. It also repairs legacy revisions
++     * that already contain one very long persisted segment. Do not use these
++     * derived rows as database evidence identities.
++     */
++    fun displayRows(transcript: List<TranscriptSegment>): List<TranscriptSegment> =
++        compact(transcript).flatMap(TranscriptTextSegmenter::splitSegment)
++
++    private fun canMerge(previous: TranscriptSegment, next: TranscriptSegment): Boolean {
++        if (previous.speakerLabel != next.speakerLabel) return false
++        val gap = next.startMs - previous.endMs
++        if (gap > MERGE_TRANSCRIPT_GAP_MS) return false
++
++        val combinedText = joinText(previous.text, next.text)
++        val combinedDuration = maxOf(previous.endMs, next.endMs) - minOf(previous.startMs, next.startMs)
++        if (combinedText.wordCount() > MAX_COMPACT_WORDS) return false
++        if (combinedText.length > MAX_COMPACT_CHARS) return false
++        if (combinedDuration > MAX_COMPACT_DURATION_MS) return false
++
++        val previousLooksComplete = previous.text.wordCount() >= MIN_COMPLETE_SENTENCE_WORDS &&
++            terminalPunctuation.containsMatchIn(previous.text.trim())
++        return !previousLooksComplete
++    }
++
+     private fun shouldProject(segment: TranscriptSegment, turns: List<SpeakerTurn>): Boolean {
+         val overlapping = turns.filter { overlapMs(segment.startMs, segment.endMs, it.startMs, it.endMs) > 0L }
+         val speakers = overlapping.map { it.speakerLabel }.distinct()
+diff --git a/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptTextSegmenter.kt b/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptTextSegmenter.kt
+index 0c87c0c..42a492c 100644
+--- a/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptTextSegmenter.kt
++++ b/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptTextSegmenter.kt
+@@ -1,19 +1,36 @@
+ package com.loomora.core.offlineai
+ 
+ import com.loomora.core.model.TranscriptSegment
+-
++import kotlin.math.abs
++
++/**
++ * Turns one ASR result into readable transcript rows without losing text.
++ *
++ * ASR engines often return a very long block when a speaker talks quickly and
++ * does not pause. Rows are therefore bounded by word count even when the model
++ * produced no punctuation. Sentence and clause punctuation are preferred as
++ * break points; a balanced word boundary is used only as a fallback.
++ */
+ internal object TranscriptTextSegmenter {
+-    private const val TARGET_WORDS_PER_SEGMENT = 42
++    private const val TARGET_WORDS_PER_SEGMENT = 28
+     private const val MIN_WORDS_PER_SEGMENT = 8
+-    private const val MAX_WORDS_PER_SEGMENT = 64
++    private const val MAX_WORDS_PER_SEGMENT = 38
+     private const val MIN_WORDS_PER_INTERVAL = 7
+ 
++    private val sentenceBoundary = Regex("(?<=[.!?…;])\\s+|[\\r\\n]+")
++    private val strongBreak = Regex("[.!?…;][\\\"'”’)]*$")
++    private val softBreak = Regex("[,：:][\\\"'”’)]*$")
++    private val connectorWords = setOf(
++        "and", "but", "however", "so", "then", "therefore", "because", "also", "meanwhile",
++        "và", "nhưng", "tuy", "nên", "vì", "rồi", "sau", "đồng", "ngoài", "tiếp"
++    )
++
+     fun segment(text: String, startMs: Long, endMs: Long): List<TranscriptSegment> {
+         val normalized = normalize(text)
+         if (normalized.isBlank()) return emptyList()
+ 
+         val sentenceParts = normalized
+-            .split(Regex("(?<=[.!?…])\\s+"))
++            .split(sentenceBoundary)
+             .map(::normalize)
+             .filter(String::isNotBlank)
+         val chunks = coalesceSentences(sentenceParts.ifEmpty { listOf(normalized) })
+@@ -21,18 +38,31 @@ internal object TranscriptTextSegmenter {
+             return listOf(newSegment(chunks.single(), text, startMs, endMs))
+         }
+ 
+-        val safeEnd = endMs.coerceAtLeast(startMs + chunks.size)
+-        val totalWeight = chunks.sumOf(::weight).coerceAtLeast(1)
+-        var elapsedWeight = 0
+-        return chunks.mapIndexed { index, chunk ->
+-            val chunkStart = startMs + (safeEnd - startMs) * elapsedWeight / totalWeight
+-            elapsedWeight += weight(chunk)
+-            val chunkEnd = if (index == chunks.lastIndex) {
+-                safeEnd
+-            } else {
+-                startMs + (safeEnd - startMs) * elapsedWeight / totalWeight
+-            }
+-            newSegment(chunk, chunk, chunkStart, chunkEnd.coerceAtLeast(chunkStart + 1L))
++        return projectChunksOntoTime(chunks, startMs, endMs)
++    }
++
++    /**
++     * Splits an already persisted legacy row for display only. Speaker metadata
++     * is preserved while timestamps are projected proportionally onto each row.
++     */
++    fun splitSegment(segment: TranscriptSegment): List<TranscriptSegment> {
++        val pieces = segment(segment.text, segment.startMs, segment.endMs)
++        if (pieces.isEmpty()) return emptyList()
++        if (pieces.size == 1) {
++            return listOf(
++                segment.copy(
++                    text = normalize(segment.text),
++                    rawText = normalize(segment.rawText.ifBlank { segment.text })
++                )
++            )
++        }
++        return pieces.map { piece ->
++            segment.copy(
++                startMs = piece.startMs,
++                endMs = piece.endMs,
++                text = piece.text,
++                rawText = piece.text
++            )
+         }
+     }
+ 
+@@ -42,7 +72,7 @@ internal object TranscriptTextSegmenter {
+      * can no longer be split into four 3-word transcript rows.
+      */
+     fun splitAcrossIntervals(text: String, intervalCount: Int): List<String> {
+-        val words = normalize(text).split(Regex("\\s+")).filter(String::isNotBlank)
++        val words = normalize(text).words()
+         if (words.isEmpty()) return emptyList()
+         if (intervalCount <= 1) return listOf(words.joinToString(" "))
+ 
+@@ -54,62 +84,145 @@ internal object TranscriptTextSegmenter {
+             val from = index * words.size / actualCount
+             val to = (index + 1) * words.size / actualCount
+             words.subList(from, to).joinToString(" ")
+-        }.mergeTinyTail()
++        }.mergeTinyTail(MIN_WORDS_PER_INTERVAL)
+     }
+ 
+     private fun coalesceSentences(sentences: List<String>): List<String> {
++        val units = sentences.flatMap(::splitLongUnit)
+         val result = mutableListOf<String>()
+-        var current = StringBuilder()
++        var current = mutableListOf<String>()
+         var currentWords = 0
+ 
+         fun flush() {
+-            val value = normalize(current.toString())
++            val value = normalize(current.joinToString(" "))
+             if (value.isNotBlank()) result += value
+-            current = StringBuilder()
++            current = mutableListOf()
+             currentWords = 0
+         }
+ 
+-        sentences.forEach { sentence ->
+-            val words = sentence.wordCount()
+-            if (words > MAX_WORDS_PER_SEGMENT) {
+-                if (currentWords > 0) flush()
+-                sentence.splitByWordLimit(MAX_WORDS_PER_SEGMENT).forEach { part ->
+-                    if (part.wordCount() < MIN_WORDS_PER_SEGMENT && result.isNotEmpty()) {
+-                        result[result.lastIndex] = normalize(result.last() + " " + part)
+-                    } else {
+-                        result += part
+-                    }
++        units.forEach { unit ->
++            val words = unit.wordCount()
++            when {
++                currentWords == 0 -> {
++                    current += unit
++                    currentWords = words
++                }
++                currentWords + words <= TARGET_WORDS_PER_SEGMENT -> {
++                    current += unit
++                    currentWords += words
++                }
++                else -> {
++                    flush()
++                    current += unit
++                    currentWords = words
+                 }
+-            } else if (currentWords == 0 || currentWords + words <= TARGET_WORDS_PER_SEGMENT) {
+-                if (current.isNotEmpty()) current.append(' ')
+-                current.append(sentence)
+-                currentWords += words
+-            } else {
+-                flush()
+-                current.append(sentence)
+-                currentWords = words
+             }
+         }
+         if (currentWords > 0) flush()
++        return result.rebalanceTinyTail()
++    }
++
++    private fun splitLongUnit(value: String): List<String> {
++        val words = normalize(value).words()
++        if (words.size <= MAX_WORDS_PER_SEGMENT) return listOf(words.joinToString(" "))
+ 
+-        if (result.size > 1 && result.last().wordCount() < MIN_WORDS_PER_SEGMENT) {
+-            val tail = result.removeAt(result.lastIndex)
+-            result[result.lastIndex] = normalize(result.last() + " " + tail)
++        val result = mutableListOf<String>()
++        var from = 0
++        while (words.size - from > MAX_WORDS_PER_SEGMENT) {
++            val remaining = words.size - from
++            val maxCut = minOf(from + MAX_WORDS_PER_SEGMENT, words.size - MIN_WORDS_PER_SEGMENT)
++            val minCut = minOf(from + MIN_WORDS_PER_SEGMENT, maxCut)
++            val targetCut = minOf(from + TARGET_WORDS_PER_SEGMENT, maxCut)
++            val cut = findBestCut(words, minCut, maxCut, targetCut)
++            result += words.subList(from, cut).joinToString(" ")
++            from = cut
++
++            // Defensive guard for malformed limits; should never be reached.
++            if (remaining == words.size - from) break
+         }
+-        return result
++        if (from < words.size) result += words.subList(from, words.size).joinToString(" ")
++        return result.rebalanceTinyTail()
+     }
+ 
+-    private fun List<String>.mergeTinyTail(): List<String> {
+-        if (size <= 1 || last().wordCount() >= MIN_WORDS_PER_INTERVAL) return this
++    private fun findBestCut(
++        words: List<String>,
++        minCut: Int,
++        maxCut: Int,
++        targetCut: Int
++    ): Int {
++        var bestCut = targetCut.coerceIn(minCut, maxCut)
++        var bestScore = Int.MIN_VALUE
++        for (cut in minCut..maxCut) {
++            val previous = words[cut - 1]
++            val next = words.getOrNull(cut)?.trimPunctuation()?.lowercase()
++            val boundaryScore = when {
++                strongBreak.containsMatchIn(previous) -> 120
++                softBreak.containsMatchIn(previous) -> 80
++                next in connectorWords -> 45
++                else -> 0
++            }
++            val distancePenalty = abs(cut - targetCut) * 3
++            val score = boundaryScore - distancePenalty
++            if (score > bestScore) {
++                bestScore = score
++                bestCut = cut
++            }
++        }
++        return bestCut
++    }
++
++    private fun List<String>.rebalanceTinyTail(): List<String> {
++        if (size <= 1 || last().wordCount() >= MIN_WORDS_PER_SEGMENT) return this
++        val mutable = toMutableList()
++        val tailWords = mutable.last().words().toMutableList()
++        val previousWords = mutable[mutable.lastIndex - 1].words().toMutableList()
++
++        if (previousWords.size + tailWords.size <= MAX_WORDS_PER_SEGMENT) {
++            mutable[mutable.lastIndex - 1] = (previousWords + tailWords).joinToString(" ")
++            mutable.removeAt(mutable.lastIndex)
++            return mutable
++        }
++
++        val needed = MIN_WORDS_PER_SEGMENT - tailWords.size
++        val movable = (previousWords.size - MIN_WORDS_PER_SEGMENT).coerceAtLeast(0)
++        val moveCount = minOf(needed, movable)
++        if (moveCount > 0) {
++            val moved = previousWords.takeLast(moveCount)
++            repeat(moveCount) { previousWords.removeAt(previousWords.lastIndex) }
++            mutable[mutable.lastIndex - 1] = previousWords.joinToString(" ")
++            mutable[mutable.lastIndex] = (moved + tailWords).joinToString(" ")
++        }
++        return mutable
++    }
++
++    private fun List<String>.mergeTinyTail(minWords: Int): List<String> {
++        if (size <= 1 || last().wordCount() >= minWords) return this
+         return dropLast(2) + normalize(this[size - 2] + " " + last())
+     }
+ 
+-    private fun String.splitByWordLimit(limit: Int): List<String> {
+-        val words = split(Regex("\\s+")).filter(String::isNotBlank)
+-        return words.chunked(limit).map { it.joinToString(" ") }
++    private fun projectChunksOntoTime(
++        chunks: List<String>,
++        startMs: Long,
++        endMs: Long
++    ): List<TranscriptSegment> {
++        val safeEnd = endMs.coerceAtLeast(startMs + chunks.size)
++        val totalWeight = chunks.sumOf(::weight).coerceAtLeast(1)
++        var elapsedWeight = 0
++        return chunks.mapIndexed { index, chunk ->
++            val chunkStart = startMs + (safeEnd - startMs) * elapsedWeight / totalWeight
++            elapsedWeight += weight(chunk)
++            val chunkEnd = if (index == chunks.lastIndex) {
++                safeEnd
++            } else {
++                startMs + (safeEnd - startMs) * elapsedWeight / totalWeight
++            }
++            newSegment(chunk, chunk, chunkStart, chunkEnd.coerceAtLeast(chunkStart + 1L))
++        }
+     }
+ 
+-    private fun String.wordCount(): Int = split(Regex("\\s+")).count(String::isNotBlank)
++    private fun String.words(): List<String> = split(Regex("\\s+")).filter(String::isNotBlank)
++    private fun String.wordCount(): Int = words().size
++    private fun String.trimPunctuation(): String = trim('"', '\'', '“', '”', '‘', '’', '(', ')', '[', ']', ',', '.', ':', ';', '!', '?', '…')
+     private fun normalize(value: String): String = value.trim().replace(Regex("\\s+"), " ")
+     private fun weight(text: String): Int = text.count { !it.isWhitespace() }.coerceAtLeast(1)
+ 
+diff --git a/core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptSpeakerReadabilityTest.kt b/core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptSpeakerReadabilityTest.kt
+new file mode 100644
+index 0000000..e74f81e
+--- /dev/null
++++ b/core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptSpeakerReadabilityTest.kt
+@@ -0,0 +1,78 @@
++package com.loomora.core.offlineai
++
++import com.loomora.core.model.TranscriptSegment
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++class TranscriptSpeakerReadabilityTest {
++    @Test
++    fun compact_doesNotMergeContinuousFastSpeechIntoOneParagraph() {
++        val input = (0 until 5).map { index ->
++            TranscriptSegment(
++                startMs = index * 5_000L,
++                endMs = index * 5_000L + 4_900L,
++                text = ((index * 20 + 1)..(index * 20 + 20)).joinToString(" ") { "word$it" },
++                speakerLabel = "Speaker 1"
++            )
++        }
++
++        val result = TranscriptSpeakerFusion.compact(input)
++
++        assertTrue(result.size > 1)
++        assertTrue(result.all { it.text.wordCount() <= 32 })
++        assertEquals(input.joinToString(" ") { it.text }, result.joinToString(" ") { it.text })
++    }
++
++    @Test
++    fun compact_stillMergesTinyFragmentsFromSameSpeaker() {
++        val input = listOf(
++            segment(0, 1_000, "hom nay chung ta", "Speaker 1"),
++            segment(1_100, 2_000, "hop ve san pham", "Speaker 1")
++        )
++
++        val result = TranscriptSpeakerFusion.compact(input)
++
++        assertEquals(1, result.size)
++        assertEquals("hom nay chung ta hop ve san pham", result.single().text)
++    }
++
++    @Test
++    fun displayRows_repairsLegacyOversizedSingleSegment() {
++        val longText = (1..100).joinToString(" ") { "word$it" }
++        val input = listOf(segment(0, 30_000, longText, "Speaker 1"))
++
++        val result = TranscriptSpeakerFusion.displayRows(input)
++
++        assertTrue(result.size >= 3)
++        assertTrue(result.all { it.text.wordCount() in 8..38 })
++        assertEquals(longText, result.joinToString(" ") { it.text })
++        assertEquals(0L, result.first().startMs)
++        assertEquals(30_000L, result.last().endMs)
++    }
++
++    @Test
++    fun completeSentence_startsANewChatRow() {
++        val first = (1..14).joinToString(" ") { "a$it" } + "."
++        val second = (1..10).joinToString(" ") { "b$it" }
++
++        val result = TranscriptSpeakerFusion.compact(
++            listOf(
++                segment(0, 5_000, first, "Speaker 1"),
++                segment(5_100, 9_000, second, "Speaker 1")
++            )
++        )
++
++        assertEquals(2, result.size)
++    }
++
++    private fun segment(start: Long, end: Long, text: String, speaker: String) = TranscriptSegment(
++        startMs = start,
++        endMs = end,
++        rawText = text,
++        text = text,
++        speakerLabel = speaker
++    )
++
++    private fun String.wordCount(): Int = split(Regex("\\s+")).count(String::isNotBlank)
++}
+diff --git a/core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptTextSegmenterTest.kt b/core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptTextSegmenterTest.kt
+index 973c0a0..676b68d 100644
+--- a/core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptTextSegmenterTest.kt
++++ b/core/offlineai/src/test/java/com/loomora/core/offlineai/TranscriptTextSegmenterTest.kt
+@@ -6,28 +6,49 @@ import org.junit.Test
+ 
+ class TranscriptTextSegmenterTest {
+     @Test
+-    fun vietnameseSentences_areSeparatedAndKeepAllText() {
+-        val result = TranscriptTextSegmenter.segment(
+-            "Xin chao. Hom nay chung ta hop ve san pham? Dong y!",
+-            startMs = 1_000,
+-            endMs = 7_000
+-        )
+-        // 11 words total -> coalesced into 1 segment since TARGET_WORDS_PER_SEGMENT is 42
++    fun vietnameseSentences_keepAllTextAndSafeTiming() {
++        val text = "Xin chao. Hom nay chung ta hop ve san pham? Dong y!"
++        val result = TranscriptTextSegmenter.segment(text, startMs = 1_000, endMs = 7_000)
++
+         assertTrue(result.isNotEmpty())
+         assertEquals(1_000L, result.first().startMs)
+         assertEquals(7_000L, result.last().endMs)
+-        assertEquals(
+-            "Xin chao. Hom nay chung ta hop ve san pham? Dong y!",
+-            result.joinToString(" ") { it.text }
+-        )
++        assertEquals(text, result.joinToString(" ") { it.text })
++        assertTrue(result.zipWithNext().all { (a, b) -> a.endMs <= b.startMs })
+     }
++
+     @Test
+-    fun unpunctuatedLongSpeech_isSplitIntoReadableRows() {
+-        val text = (1..40).joinToString(" ") { "word$it" }
+-        val result = TranscriptTextSegmenter.segment(text, 0, 8_000)
++    fun unpunctuatedFastSpeech_isSplitIntoReadableRows() {
++        val text = (1..120).joinToString(" ") { "word$it" }
++        val result = TranscriptTextSegmenter.segment(text, 0, 40_000)
+ 
+-        // 40 words fits into 1 segment (< 42 target words per segment)
+-        assertTrue(result.isNotEmpty())
++        assertTrue(result.size >= 4)
++        assertTrue(result.all { it.text.wordCount() in 8..38 })
++        assertEquals(text, result.joinToString(" ") { it.text })
++        assertEquals(0L, result.first().startMs)
++        assertEquals(40_000L, result.last().endMs)
++    }
++
++    @Test
++    fun commaNearTarget_isPreferredOverArbitraryBoundary() {
++        val firstClause = (1..24).joinToString(" ") { "a$it" } + ","
++        val secondClause = (25..55).joinToString(" ") { "a$it" }
++        val result = TranscriptTextSegmenter.segment("$firstClause $secondClause", 0, 20_000)
++
++        assertTrue(result.size >= 2)
++        assertTrue(result.first().text.endsWith(","))
++        assertEquals("$firstClause $secondClause", result.joinToString(" ") { it.text })
++    }
++
++    @Test
++    fun tinyTail_isBalancedInsteadOfCreatingTwoWordRow() {
++        val text = (1..42).joinToString(" ") { "word$it" }
++        val result = TranscriptTextSegmenter.segment(text, 0, 12_000)
++
++        assertTrue(result.size >= 2)
++        assertTrue(result.all { it.text.wordCount() >= 8 })
+         assertEquals(text, result.joinToString(" ") { it.text })
+     }
++
++    private fun String.wordCount(): Int = split(Regex("\\s+")).count(String::isNotBlank)
+ }
+diff --git a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
+index 3a07a7e..7dee352 100644
+--- a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
++++ b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
+@@ -626,7 +626,7 @@ fun RecordingDetailScreen(
+                                 val transcript = uiState.transcript
+                                 val aliasMap = uiState.speakerAliases.associate { it.genericLabel to it.displayName }
+                                 val speakerRows = remember(transcript?.segments) {
+-                                    TranscriptSpeakerFusion.compact(transcript?.segments.orEmpty())
++                                    TranscriptSpeakerFusion.displayRows(transcript?.segments.orEmpty())
+                                 }
+                                 if (selectedTab == RecordingDetailTab.INSIGHTS && speakerRows.isNotEmpty()) {
+                                     Spacer(modifier = Modifier.height(16.dp))

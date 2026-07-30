@@ -1,0 +1,19 @@
+{
+  "name": "Loomora Unified Code Fix",
+  "version": "2026.07.30.1",
+  "target": "ad3683b or descendant",
+  "self_checks": {
+    "patcher_first_run_ok": true,
+    "patcher_second_run_idempotent_ok": true,
+    "audio_metadata_48k": true,
+    "audio_metadata_mono": true,
+    "language_selector_wired": true,
+    "task_identity_includes_title_assignee": true,
+    "display_rows_wired": true,
+    "action_limit_8": true,
+    "extract_all_wired": true,
+    "new_kotlin_sources_compiled": true,
+    "task_behavior_smoke_test": true
+  },
+  "file_count": 26
+}

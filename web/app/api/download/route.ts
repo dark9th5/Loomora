@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
 
 function getConfiguredApkUrl() {
   const apkUrl = process.env.NEXT_PUBLIC_APK_URL;
-  if (apkUrl && /^https?:\/\//i.test(apkUrl) && !apkUrl.includes('android-v1.0.1')) {
+  if (apkUrl && /^https?:\/\//i.test(apkUrl) && !apkUrl.includes('android-v1.0.1') && !apkUrl.includes('android-v1.0.2')) {
     return apkUrl;
   }
-  return 'https://github.com/dark9th5/Loomora/releases/download/android-v1.0.2/app-release.apk';
+  return 'https://github.com/dark9th5/Loomora/releases/download/android-v1.0.3/app-release.apk';
 }
 
 export async function GET(request: NextRequest) {

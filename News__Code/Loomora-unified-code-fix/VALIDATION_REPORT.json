@@ -1,0 +1,20 @@
+{
+  "base_target": "ad3683b or descendant",
+  "actual_code_fixes": [
+    "readable transcript segmentation",
+    "speaker fusion bounds",
+    "bilingual action task extraction",
+    "multi-task clauses",
+    "task identity robustness",
+    "language-aware ASR model selection",
+    "audio metadata consistency",
+    "live caption and translation domain contracts"
+  ],
+  "not_claimed_complete": [
+    "AudioRecord PCM recorder migration",
+    "on-device translation provider",
+    "live recorder UI wiring",
+    "real-device ARM64 validation"
+  ],
+  "generated_at": "2026-07-30T17:39:00+07:00"
+}

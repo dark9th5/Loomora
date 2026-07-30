@@ -38,11 +38,11 @@ import com.loomora.core.offlineai.OfflineAnalysisCoordinator
 import com.loomora.core.offlineai.OfflineProcessingQueue
 import com.loomora.core.offlineai.OfflineProcessingOptions
 import com.loomora.core.offlineai.TranscriptionPerformanceProfile
+import com.loomora.core.offlineai.TranscriptionModelSelector
 import com.loomora.core.offlineai.TranscriptRepository
 import com.loomora.core.offlineai.TranscriptSpeakerFusion
 import com.loomora.core.offlineai.ModelCapability
 import com.loomora.core.offlineai.OfflineModelRepository
-import com.loomora.core.offlineai.DefaultOfflineModelCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -406,7 +406,12 @@ class RecordingDetailViewModel @Inject constructor(
             }
             val preferences = preferencesDataSource.userPreferences.first()
             val analysisMode = analysisModeOverride ?: preferences.defaultAnalysisMode
-            if (!offlineModelRepository.hasReadyModels(setOf(ModelCapability.TRANSCRIPTION))) {
+            val selectedTranscriptionModel = TranscriptionModelSelector.select(
+                requestedLanguageTag = preferences.transcriptLanguage.tag,
+                records = offlineModelRepository.models.first(),
+                manuallySelectedId = preferences.transcriptionModelId
+            )
+            if (selectedTranscriptionModel == null) {
                 transcriptionModelMissing.value = true
                 return@launch
             }
@@ -421,8 +426,7 @@ class RecordingDetailViewModel @Inject constructor(
                 recording.id,
                 recording.editedOutputUri ?: recording.originalFileUri,
                 OfflineProcessingOptions(
-                    transcriptionModelId = preferences.transcriptionModelId
-                        ?: DefaultOfflineModelCatalog.RECOMMENDED_TRANSCRIPTION_MODEL_ID,
+                    transcriptionModelId = selectedTranscriptionModel.manifest.id,
                     diarizationEnabled = analysisMode == DefaultAnalysisMode.FULL_ANALYSIS,
                     insightsMode = if (analysisMode == DefaultAnalysisMode.QUICK_TRANSCRIPT) "NONE" else "HEURISTIC",
                     outputLanguage = preferences.transcriptLanguage.tag,
@@ -520,11 +524,12 @@ class RecordingDetailViewModel @Inject constructor(
                 .sorted()
                 .joinToString(",")
 
-            val identityString = if (sortedEvidenceCsv.isNotBlank()) {
-                "$targetRecordingId|$sortedEvidenceCsv"
-            } else {
-                "$targetRecordingId|${normalizeTaskIdentity(title)}"
-            }
+            val identityString = listOf(
+                targetRecordingId,
+                sortedEvidenceCsv,
+                normalizeTaskIdentity(title),
+                normalizeTaskIdentity(assignee.orEmpty())
+            ).joinToString("|")
 
             val taskId = UUID.nameUUIDFromBytes(identityString.toByteArray(Charsets.UTF_8)).toString()
 
@@ -655,7 +660,7 @@ internal fun formatInsightsText(state: RecordingDetailUiState): String {
         appendList(headingTasks, taskLines)
         appendList(headingQuestions, insights.openQuestions)
 
-        val speakerRows = TranscriptSpeakerFusion.compact(transcript?.segments.orEmpty())
+        val speakerRows = TranscriptSpeakerFusion.displayRows(transcript?.segments.orEmpty())
         if (speakerRows.isNotEmpty()) {
             appendLine()
             appendLine(headingTimeline)

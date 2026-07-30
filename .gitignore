@@ -62,5 +62,7 @@ web/*.log
 Thumbs.db
 
 .vercel
+.kotlin/
 .loomora-backup*
 .loomora-task-upgrade-backup*
+.loomora-unified-backup*

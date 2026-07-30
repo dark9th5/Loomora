@@ -626,7 +626,7 @@ fun RecordingDetailScreen(
                                 val transcript = uiState.transcript
                                 val aliasMap = uiState.speakerAliases.associate { it.genericLabel to it.displayName }
                                 val speakerRows = remember(transcript?.segments) {
-                                    TranscriptSpeakerFusion.compact(transcript?.segments.orEmpty())
+                                    TranscriptSpeakerFusion.displayRows(transcript?.segments.orEmpty())
                                 }
                                 if (selectedTab == RecordingDetailTab.INSIGHTS && speakerRows.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(16.dp))

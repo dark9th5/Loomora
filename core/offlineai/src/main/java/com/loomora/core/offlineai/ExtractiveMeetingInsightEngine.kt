@@ -48,7 +48,7 @@ class HeuristicMeetingInsightEngine @Inject constructor(
             candidate.copy(score = score(candidate, frequencies, index, candidates.size))
         }
         val decisionCandidates = selectDiverse(scored.filter { decisionRegex.containsMatchIn(it.text) }, 3)
-        val actionCandidates = selectDiverse(scored.filter { HeuristicActionItemExtractor.isActionable(it.text) }, 5)
+        val actionCandidates = selectDiverse(scored.filter { HeuristicActionItemExtractor.isActionable(it.text) }, 8)
         val questionCandidates = selectDiverse(scored.filter { questionRegex.containsMatchIn(it.text) || it.text.trim().endsWith("?") }, 3)
         val suggestionCandidates = selectDiverse(scored.filter { suggestionRegex.containsMatchIn(it.text) }, 3)
 
@@ -56,9 +56,15 @@ class HeuristicMeetingInsightEngine @Inject constructor(
         val decisions = decisionCandidates.map { cleanSentence(it.text) }
         val questions = questionCandidates.map { cleanSentence(it.text) }
         val suggestions = suggestionCandidates.map { cleanSentence(it.text) }
-        val actions = actionCandidates.mapNotNull { candidate ->
-            HeuristicActionItemExtractor.extract(candidate.text, candidate.segmentIds)
-        }.distinctBy { normalizeForComparison(it.task) }
+        val actions = actionCandidates.flatMap { candidate ->
+            HeuristicActionItemExtractor.extractAll(candidate.text, candidate.segmentIds)
+        }.distinctBy {
+            listOf(
+                normalizeForComparison(it.task),
+                normalizeForComparison(it.assignee.orEmpty()),
+                it.dueDate?.lowercase().orEmpty()
+            ).joinToString("|")
+        }
 
         val insights = AiInsights(
             suggestedTitle = synthesizeTitle(topics, vietnamese),

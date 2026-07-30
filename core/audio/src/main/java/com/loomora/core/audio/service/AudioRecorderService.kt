@@ -13,6 +13,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.loomora.core.audio.R
 import com.loomora.core.audio.engine.AudioRecordEngine
+import com.loomora.core.audio.engine.AudioCaptureSpec
 import com.loomora.core.audio.enhance.RnnoiseAudioEnhancer
 import com.loomora.core.audio.model.RecorderState
 import com.loomora.core.database.dao.RecordingDao
@@ -101,10 +102,10 @@ class AudioRecorderService : Service() {
             status = RecordingStatus.RECORDING.name,
             originalFileUri = "file://${outputFile.absolutePath}",
             editedOutputUri = null,
-            mimeType = "audio/aac",
-            sampleRate = 44100,
-            channels = 2,
-            bitrate = 128000,
+            mimeType = AudioCaptureSpec.MIME_TYPE,
+            sampleRate = AudioCaptureSpec.SAMPLE_RATE_HZ,
+            channels = AudioCaptureSpec.CHANNEL_COUNT,
+            bitrate = AudioCaptureSpec.AAC_BIT_RATE,
             sizeBytes = 0L
         )
 
@@ -238,10 +239,10 @@ class AudioRecorderService : Service() {
                         status = RecordingStatus.FINALIZING.name,
                         originalFileUri = fileUri,
                         editedOutputUri = null,
-                        mimeType = "audio/aac",
-                        sampleRate = 44100,
-                        channels = 2,
-                        bitrate = 128000,
+                        mimeType = AudioCaptureSpec.MIME_TYPE,
+                        sampleRate = AudioCaptureSpec.SAMPLE_RATE_HZ,
+                        channels = AudioCaptureSpec.CHANNEL_COUNT,
+                        bitrate = AudioCaptureSpec.AAC_BIT_RATE,
                         sizeBytes = 0L
                     )).copy(
                         updatedAt = now,

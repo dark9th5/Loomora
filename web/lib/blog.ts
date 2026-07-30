@@ -14,6 +14,36 @@ export interface BlogPost {
 
 const SAMPLE_POSTS: BlogPost[] = [
   {
+    slug: 'loomora-v1-0-3-release-unified-ai-and-audio-upgrades',
+    title: 'Loomora v1.0.3: Unified Code Fix, Enhanced Speaker Fusion & Language Routing',
+    excerpt: 'Announcing Loomora v1.0.3 with unified transcript segmentation, intelligent Vietnamese/English model selector, standardized 48kHz audio specs, and live captioning foundations.',
+    content: `
+We are thrilled to release **Loomora v1.0.3**, bringing significant upgrades to our local-first AI recording and transcription pipeline.
+
+### What's New in v1.0.3
+
+1. **Unified Transcript Segmentation & Speaker Fusion:**
+   - Improved \`TranscriptTextSegmenter\` targeting ~28 words per segment with natural sentence boundary detection.
+   - Enhanced \`TranscriptSpeakerFusion\` display rows that merge short speaker turns seamlessly up to optimal limits without word repetition or truncation.
+
+2. **Smart Language & Model Routing:**
+   - Added \`TranscriptionModelSelector\` to route Vietnamese transcriptions to dedicated Vietnamese models when available and fall back gracefully to multilingual models for English or Auto mode.
+
+3. **Audio Capture Standardization:**
+   - Unified audio recording specifications around 48 kHz mono recording for consistent RNNoise processing while retaining high-quality AAC encoding.
+
+4. **Live Captioning & Local Translation Foundations:**
+   - Integrated domain logic for live caption streaming, final utterance translation coordination, and real-time offline translation fallbacks.
+
+Download Loomora v1.0.3 today from the download page!
+    `,
+    date: '2026-07-30',
+    category: 'Product Updates',
+    tags: ['Release', 'AI Notes', 'Audio', 'Android', 'v1.0.3'],
+    readTime: '3 min read',
+    author: 'Loomora Product Team',
+  },
+  {
     slug: 'local-first-voice-recording-privacy',
     title: 'Why Local-First Voice Recording Matters for Your Privacy',
     excerpt: 'Discover how keeping your voice notes and meeting audio on-device protects your sensitive conversations from unauthorized cloud exposure.',

@@ -1,0 +1,20 @@
+LOOMORA — UNIFIED CODE FIX
+==========================
+
+Base khuyến nghị: commit ad3683b hoặc commit mới hơn đã chứa Room schema 9/task management.
+
+Bản gộp này thay thế hai gói cũ:
+- Loomora-readable-transcript-code-fix
+- Loomora-live-ai-upgrade-kit
+
+Áp dụng trên Windows:
+1. Giải nén ZIP vào một thư mục riêng.
+2. Mở PowerShell tại thư mục gốc repository Loomora.
+3. Chạy:
+   powershell -ExecutionPolicy Bypass -File "<duong-dan-giai-nen>\apply-loomora-unified-fix.ps1"
+
+Sau đó chạy:
+   .\gradlew.bat :core:offlineai:testDebugUnitTest :core:audio:testDebugUnitTest
+   .\gradlew.bat clean check testDebugUnitTest :app:assembleDebug
+
+Đọc README_VI.md và FEATURE_STATUS.md trước khi merge.
