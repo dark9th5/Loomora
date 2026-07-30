@@ -22,15 +22,15 @@ export async function GET(request: NextRequest) {
   if (!existsSync(localApkPath)) {
     return NextResponse.json(
       {
-        error: 'APK artifact is not configured.',
-        message: 'Set NEXT_PUBLIC_APK_URL to a public APK artifact URL such as GitHub Releases, S3, or a CDN.',
+        error: 'APK artifact is not found.',
+        message: 'The requested APK file could not be located.',
       },
-      { status: 503 },
+      { status: 404 },
     );
   }
 
   const requestUrl = new URL(request.url);
   const downloadUrl = new URL('/downloads/app-release.apk', requestUrl.origin);
 
-  return NextResponse.redirect(downloadUrl.toString(), { status: 307 });
+  return NextResponse.redirect(downloadUrl.toString(), { status: 302 });
 }
