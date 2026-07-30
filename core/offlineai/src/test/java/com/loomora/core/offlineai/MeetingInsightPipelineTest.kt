@@ -76,9 +76,9 @@ class MeetingInsightPipelineTest {
                 languageTag = "vi",
                 createdAt = 1L,
                 segments = listOf(
-                    TranscriptSegment(id = "s1", startMs = 0L, endMs = 2_000L, text = "Ca nhom thong nhat chot ban beta vao thu sau."),
-                    TranscriptSegment(id = "s2", startMs = 2_000L, endMs = 5_000L, text = "Can giao cho Linh review store listing ngay mai."),
-                    TranscriptSegment(id = "s3", startMs = 5_000L, endMs = 8_000L, text = "Cau hoi la lieu onboarding tieng Viet can sua them khong?")
+                    TranscriptSegment(id = "s1", startMs = 0L, endMs = 2_000L, text = "Ca nhom thong nhat chot ban beta vao thu sau.", speakerLabel = "Speaker 1"),
+                    TranscriptSegment(id = "s2", startMs = 5_000L, endMs = 8_000L, text = "Can giao cho Linh review store listing ngay mai.", speakerLabel = "Speaker 2"),
+                    TranscriptSegment(id = "s3", startMs = 11_000L, endMs = 14_000L, text = "Cau hoi la lieu onboarding tieng Viet can sua them khong?", speakerLabel = "Speaker 1")
                 )
             ),
             model = null,
