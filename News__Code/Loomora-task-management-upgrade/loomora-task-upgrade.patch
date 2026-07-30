@@ -1,0 +1,1030 @@
+diff --git a/core/database/src/main/java/com/loomora/core/database/LoomoraDatabase.kt b/core/database/src/main/java/com/loomora/core/database/LoomoraDatabase.kt
+index 82f77b5..057211a 100644
+--- a/core/database/src/main/java/com/loomora/core/database/LoomoraDatabase.kt
++++ b/core/database/src/main/java/com/loomora/core/database/LoomoraDatabase.kt
+@@ -10,6 +10,7 @@ import com.loomora.core.database.dao.InsightDao
+ import com.loomora.core.database.dao.MarkerDao
+ import com.loomora.core.database.dao.OfflineModelDao
+ import com.loomora.core.database.dao.RecordingDao
++import com.loomora.core.database.dao.RecordingTaskDao
+ import com.loomora.core.database.dao.TagDao
+ import com.loomora.core.database.dao.TranscriptDao
+ import com.loomora.core.database.dao.TrialOperationDao
+@@ -24,6 +25,7 @@ import com.loomora.core.database.entity.MarkerEntity
+ import com.loomora.core.database.entity.OfflineModelEntity
+ import com.loomora.core.database.entity.RecordingEntity
+ import com.loomora.core.database.entity.RecordingTagCrossRef
++import com.loomora.core.database.entity.RecordingTaskEntity
+ import com.loomora.core.database.entity.SpeakerAliasEntity
+ import com.loomora.core.database.entity.SpeakerTurnEntity
+ import com.loomora.core.database.entity.TagEntity
+@@ -51,9 +53,10 @@ import com.loomora.core.database.entity.TranscriptSegmentEntity
+         InsightChunkCheckpointEntity::class,
+         EntitlementEntity::class,
+         TrialUsageEntity::class,
+-        TrialOperationEntity::class
++        TrialOperationEntity::class,
++        RecordingTaskEntity::class
+     ],
+-    version = 8,
++    version = 9,
+     exportSchema = true
+ )
+ abstract class LoomoraDatabase : RoomDatabase() {
+@@ -68,4 +71,5 @@ abstract class LoomoraDatabase : RoomDatabase() {
+     abstract fun diarizationDao(): DiarizationDao
+     abstract fun insightDao(): InsightDao
+     abstract fun trialOperationDao(): TrialOperationDao
++    abstract fun recordingTaskDao(): RecordingTaskDao
+ }
+diff --git a/core/database/src/main/java/com/loomora/core/database/Migrations.kt b/core/database/src/main/java/com/loomora/core/database/Migrations.kt
+index 367f1ba..60ca771 100644
+--- a/core/database/src/main/java/com/loomora/core/database/Migrations.kt
++++ b/core/database/src/main/java/com/loomora/core/database/Migrations.kt
+@@ -277,4 +277,35 @@ object LoomoraMigrations {
+             )
+         }
+     }
++
++
++    val MIGRATION_8_9 = object : Migration(8, 9) {
++        override fun migrate(database: SupportSQLiteDatabase) {
++            database.execSQL(
++                """
++                CREATE TABLE IF NOT EXISTS `recording_tasks` (
++                    `id` TEXT NOT NULL,
++                    `recordingId` TEXT NOT NULL,
++                    `sourceInsightRevisionId` TEXT,
++                    `sourceActionIndex` INTEGER,
++                    `title` TEXT NOT NULL,
++                    `assignee` TEXT,
++                    `dueDate` TEXT,
++                    `status` TEXT NOT NULL DEFAULT 'TODO',
++                    `evidenceSegmentIdsCsv` TEXT NOT NULL DEFAULT '',
++                    `sourceGenerationMode` TEXT NOT NULL DEFAULT 'UNKNOWN',
++                    `createdAt` INTEGER NOT NULL,
++                    `updatedAt` INTEGER NOT NULL,
++                    `completedAt` INTEGER,
++                    `isUserEdited` INTEGER NOT NULL DEFAULT 0,
++                    PRIMARY KEY(`id`),
++                    FOREIGN KEY(`recordingId`) REFERENCES `recordings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
++                )
++                """.trimIndent()
++            )
++            database.execSQL("CREATE INDEX IF NOT EXISTS `index_recording_tasks_recordingId` ON `recording_tasks` (`recordingId`)")
++            database.execSQL("CREATE INDEX IF NOT EXISTS `index_recording_tasks_status` ON `recording_tasks` (`status`)")
++            database.execSQL("CREATE INDEX IF NOT EXISTS `index_recording_tasks_sourceInsightRevisionId` ON `recording_tasks` (`sourceInsightRevisionId`)")
++        }
++    }
+ }
+diff --git a/new/core/database/src/main/java/com/loomora/core/database/dao/RecordingTaskDao.kt b/core/database/src/main/java/com/loomora/core/database/dao/RecordingTaskDao.kt
+new file mode 100644
+index 0000000..7abf9c7
+--- /dev/null
++++ b/core/database/src/main/java/com/loomora/core/database/dao/RecordingTaskDao.kt
+@@ -0,0 +1,85 @@
++package com.loomora.core.database.dao
++
++import androidx.room.Dao
++import androidx.room.Insert
++import androidx.room.OnConflictStrategy
++import androidx.room.Query
++import com.loomora.core.database.entity.RecordingTaskEntity
++import kotlinx.coroutines.flow.Flow
++
++@Dao
++interface RecordingTaskDao {
++    @Query(
++        """
++        SELECT * FROM recording_tasks
++        WHERE recordingId = :recordingId AND status != 'ARCHIVED'
++        ORDER BY CASE WHEN status = 'DONE' THEN 1 ELSE 0 END, createdAt ASC
++        """
++    )
++    fun observeTasksForRecording(recordingId: String): Flow<List<RecordingTaskEntity>>
++
++    @Insert(onConflict = OnConflictStrategy.IGNORE)
++    suspend fun insertGeneratedTasks(tasks: List<RecordingTaskEntity>): List<Long>
++
++    @Query(
++        """
++        UPDATE recording_tasks
++        SET status = :status,
++            completedAt = :completedAt,
++            updatedAt = :updatedAt
++        WHERE id = :taskId
++        """
++    )
++    suspend fun updateStatus(
++        taskId: String,
++        status: String,
++        completedAt: Long?,
++        updatedAt: Long
++    ): Int
++
++    @Query(
++        """
++        UPDATE recording_tasks
++        SET sourceInsightRevisionId = :sourceInsightRevisionId,
++            sourceActionIndex = :sourceActionIndex,
++            sourceGenerationMode = :sourceGenerationMode,
++            updatedAt = :updatedAt
++        WHERE id = :taskId
++        """
++    )
++    suspend fun updateSourceMetadata(
++        taskId: String,
++        sourceInsightRevisionId: String?,
++        sourceActionIndex: Int?,
++        sourceGenerationMode: String,
++        updatedAt: Long
++    ): Int
++
++    @Query(
++        """
++        UPDATE recording_tasks
++        SET title = :title,
++            assignee = :assignee,
++            dueDate = :dueDate,
++            isUserEdited = 1,
++            updatedAt = :updatedAt
++        WHERE id = :taskId
++        """
++    )
++    suspend fun updateContent(
++        taskId: String,
++        title: String,
++        assignee: String?,
++        dueDate: String?,
++        updatedAt: Long
++    ): Int
++
++    @Query(
++        """
++        UPDATE recording_tasks
++        SET status = 'ARCHIVED', updatedAt = :updatedAt
++        WHERE id = :taskId
++        """
++    )
++    suspend fun archive(taskId: String, updatedAt: Long): Int
++}
+diff --git a/core/database/src/main/java/com/loomora/core/database/di/DatabaseModule.kt b/core/database/src/main/java/com/loomora/core/database/di/DatabaseModule.kt
+index 8fcc7c0..296d221 100644
+--- a/core/database/src/main/java/com/loomora/core/database/di/DatabaseModule.kt
++++ b/core/database/src/main/java/com/loomora/core/database/di/DatabaseModule.kt
+@@ -12,6 +12,7 @@ import com.loomora.core.database.dao.InsightDao
+ import com.loomora.core.database.dao.MarkerDao
+ import com.loomora.core.database.dao.OfflineModelDao
+ import com.loomora.core.database.dao.RecordingDao
++import com.loomora.core.database.dao.RecordingTaskDao
+ import com.loomora.core.database.dao.TagDao
+ import com.loomora.core.database.dao.TranscriptDao
+ import com.loomora.core.database.dao.TrialOperationDao
+@@ -43,7 +44,8 @@ object DatabaseModule {
+                 LoomoraMigrations.MIGRATION_4_5,
+                 LoomoraMigrations.MIGRATION_5_6,
+                 LoomoraMigrations.MIGRATION_6_7,
+-                LoomoraMigrations.MIGRATION_7_8
++                LoomoraMigrations.MIGRATION_7_8,
++                LoomoraMigrations.MIGRATION_8_9
+             )
+             .build()
+     }
+@@ -80,4 +82,7 @@ object DatabaseModule {
+ 
+     @Provides
+     fun provideTrialOperationDao(database: LoomoraDatabase): TrialOperationDao = database.trialOperationDao()
++
++    @Provides
++    fun provideRecordingTaskDao(database: LoomoraDatabase): RecordingTaskDao = database.recordingTaskDao()
+ }
+diff --git a/new/core/database/src/main/java/com/loomora/core/database/entity/RecordingTaskEntity.kt b/core/database/src/main/java/com/loomora/core/database/entity/RecordingTaskEntity.kt
+new file mode 100644
+index 0000000..c328ab1
+--- /dev/null
++++ b/core/database/src/main/java/com/loomora/core/database/entity/RecordingTaskEntity.kt
+@@ -0,0 +1,54 @@
++package com.loomora.core.database.entity
++
++import androidx.room.ColumnInfo
++import androidx.room.Entity
++import androidx.room.ForeignKey
++import androidx.room.Index
++import androidx.room.PrimaryKey
++
++@Entity(
++    tableName = "recording_tasks",
++    foreignKeys = [
++        ForeignKey(
++            entity = RecordingEntity::class,
++            parentColumns = ["id"],
++            childColumns = ["recordingId"],
++            onDelete = ForeignKey.CASCADE
++        )
++    ],
++    indices = [
++        Index("recordingId"),
++        Index("status"),
++        Index("sourceInsightRevisionId")
++    ]
++)
++data class RecordingTaskEntity(
++    @PrimaryKey
++    val id: String,
++    val recordingId: String,
++    val sourceInsightRevisionId: String? = null,
++    val sourceActionIndex: Int? = null,
++    val title: String,
++    val assignee: String? = null,
++    val dueDate: String? = null,
++    @ColumnInfo(defaultValue = "'TODO'")
++    val status: String = STATUS_TODO,
++    @ColumnInfo(defaultValue = "''")
++    val evidenceSegmentIdsCsv: String = "",
++    @ColumnInfo(defaultValue = "'UNKNOWN'")
++    val sourceGenerationMode: String = "UNKNOWN",
++    val createdAt: Long,
++    val updatedAt: Long,
++    val completedAt: Long? = null,
++    @ColumnInfo(defaultValue = "0")
++    val isUserEdited: Boolean = false
++) {
++    val isCompleted: Boolean
++        get() = status == STATUS_DONE
++
++    companion object {
++        const val STATUS_TODO = "TODO"
++        const val STATUS_DONE = "DONE"
++        const val STATUS_ARCHIVED = "ARCHIVED"
++    }
++}
+diff --git a/new/core/database/src/test/java/com/loomora/core/database/RecordingTaskDaoTest.kt b/core/database/src/test/java/com/loomora/core/database/RecordingTaskDaoTest.kt
+new file mode 100644
+index 0000000..64d82a9
+--- /dev/null
++++ b/core/database/src/test/java/com/loomora/core/database/RecordingTaskDaoTest.kt
+@@ -0,0 +1,80 @@
++package com.loomora.core.database
++
++import androidx.room.Room
++import androidx.test.core.app.ApplicationProvider
++import androidx.test.ext.junit.runners.AndroidJUnit4
++import com.loomora.core.database.entity.RecordingEntity
++import com.loomora.core.database.entity.RecordingTaskEntity
++import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.test.runTest
++import org.junit.After
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertTrue
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.annotation.Config
++
++@RunWith(AndroidJUnit4::class)
++@Config(sdk = [34])
++class RecordingTaskDaoTest {
++    private lateinit var database: LoomoraDatabase
++
++    @Before
++    fun setUp() {
++        database = Room.inMemoryDatabaseBuilder(
++            ApplicationProvider.getApplicationContext(),
++            LoomoraDatabase::class.java
++        ).allowMainThreadQueries().build()
++    }
++
++    @After
++    fun tearDown() {
++        database.close()
++    }
++
++    @Test
++    fun generatedTask_survivesEditingCompletionAndArchive() = runTest {
++        val now = 1_000L
++        database.recordingDao().insertRecording(
++            RecordingEntity(
++                id = "recording-1",
++                title = "Meeting",
++                createdAt = now,
++                updatedAt = now,
++                durationMs = 60_000L,
++                status = "SAVED",
++                originalFileUri = "file:///tmp/meeting.m4a",
++                mimeType = "audio/mp4",
++                sampleRate = 48_000,
++                channels = 1,
++                bitrate = 128_000,
++                sizeBytes = 1_024L
++            )
++        )
++        val dao = database.recordingTaskDao()
++        val task = RecordingTaskEntity(
++            id = "task-1",
++            recordingId = "recording-1",
++            title = "Send the final report",
++            assignee = "Lan",
++            dueDate = "Friday",
++            sourceGenerationMode = "HEURISTIC",
++            createdAt = now,
++            updatedAt = now
++        )
++
++        dao.insertGeneratedTasks(listOf(task))
++        dao.updateContent("task-1", "Send the approved report", "Lan", "Monday", now + 1)
++        dao.updateStatus("task-1", RecordingTaskEntity.STATUS_DONE, now + 2, now + 2)
++
++        val completed = dao.observeTasksForRecording("recording-1").first().single()
++        assertEquals("Send the approved report", completed.title)
++        assertEquals("Monday", completed.dueDate)
++        assertTrue(completed.isCompleted)
++        assertTrue(completed.isUserEdited)
++
++        dao.archive("task-1", now + 3)
++        assertTrue(dao.observeTasksForRecording("recording-1").first().isEmpty())
++    }
++}
+diff --git a/core/offlineai/src/main/java/com/loomora/core/offlineai/ExtractiveMeetingInsightEngine.kt b/core/offlineai/src/main/java/com/loomora/core/offlineai/ExtractiveMeetingInsightEngine.kt
+index a8dd283..478d62a 100644
+--- a/core/offlineai/src/main/java/com/loomora/core/offlineai/ExtractiveMeetingInsightEngine.kt
++++ b/core/offlineai/src/main/java/com/loomora/core/offlineai/ExtractiveMeetingInsightEngine.kt
+@@ -1,6 +1,5 @@
+ package com.loomora.core.offlineai
+ 
+-import com.loomora.core.model.ActionItem
+ import com.loomora.core.model.AiInsights
+ import com.loomora.core.model.Chapter
+ import com.loomora.core.model.TranscriptSegment
+@@ -49,7 +48,7 @@ class HeuristicMeetingInsightEngine @Inject constructor(
+             candidate.copy(score = score(candidate, frequencies, index, candidates.size))
+         }
+         val decisionCandidates = selectDiverse(scored.filter { decisionRegex.containsMatchIn(it.text) }, 3)
+-        val actionCandidates = selectDiverse(scored.filter { actionRegex.containsMatchIn(it.text) }, 3)
++        val actionCandidates = selectDiverse(scored.filter { HeuristicActionItemExtractor.isActionable(it.text) }, 5)
+         val questionCandidates = selectDiverse(scored.filter { questionRegex.containsMatchIn(it.text) || it.text.trim().endsWith("?") }, 3)
+         val suggestionCandidates = selectDiverse(scored.filter { suggestionRegex.containsMatchIn(it.text) }, 3)
+ 
+@@ -57,13 +56,8 @@ class HeuristicMeetingInsightEngine @Inject constructor(
+         val decisions = decisionCandidates.map { cleanSentence(it.text) }
+         val questions = questionCandidates.map { cleanSentence(it.text) }
+         val suggestions = suggestionCandidates.map { cleanSentence(it.text) }
+-        val actions = actionCandidates.map { candidate ->
+-            ActionItem(
+-                task = cleanSentence(candidate.text),
+-                assignee = explicitAssignee(candidate.text),
+-                dueDate = explicitDueDate(candidate.text),
+-                evidenceSegmentIds = candidate.segmentIds
+-            )
++        val actions = actionCandidates.mapNotNull { candidate ->
++            HeuristicActionItemExtractor.extract(candidate.text, candidate.segmentIds)
+         }.distinctBy { normalizeForComparison(it.task) }
+ 
+         val insights = AiInsights(
+@@ -332,14 +326,6 @@ class HeuristicMeetingInsightEngine @Inject constructor(
+     private fun normalizeForComparison(text: String): String = tokenize(text).joinToString(" ")
+     private fun String.wordCount(): Int = split(Regex("\\s+")).count(String::isNotBlank)
+ 
+-    private fun explicitAssignee(text: String): String? =
+-        Regex("\\b(?:ask|asks|assigned to|giao cho|nhờ)\\s+([\\p{L}][\\p{L}\\p{N}_-]{1,24})", RegexOption.IGNORE_CASE)
+-            .find(text)?.groupValues?.getOrNull(1)
+-
+-    private fun explicitDueDate(text: String): String? =
+-        Regex("\\b(?:today|tomorrow|friday|monday|tuesday|wednesday|thursday|saturday|sunday|hôm nay|ngày mai|thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật)\\b", RegexOption.IGNORE_CASE)
+-            .find(text)?.value
+-
+     private fun currentUsedMemoryKb(): Long {
+         val runtime = Runtime.getRuntime()
+         return (runtime.totalMemory() - runtime.freeMemory()) / 1024L
+diff --git a/new/core/offlineai/src/main/java/com/loomora/core/offlineai/HeuristicActionItemExtractor.kt b/core/offlineai/src/main/java/com/loomora/core/offlineai/HeuristicActionItemExtractor.kt
+new file mode 100644
+index 0000000..949b52a
+--- /dev/null
++++ b/core/offlineai/src/main/java/com/loomora/core/offlineai/HeuristicActionItemExtractor.kt
+@@ -0,0 +1,121 @@
++package com.loomora.core.offlineai
++
++import com.loomora.core.model.ActionItem
++
++/**
++ * Conservative fallback extraction used when no local LLM is installed or the model fails.
++ * It intentionally prefers missing an ambiguous task over presenting a question, negation,
++ * or generic recommendation as a confirmed action item.
++ */
++internal object HeuristicActionItemExtractor {
++    fun isActionable(text: String): Boolean {
++        val cleaned = normalizeWhitespace(text)
++        val wordCount = cleaned.split(Regex("\\s+")).count(String::isNotBlank)
++        if (wordCount !in 3..55) return false
++        if (cleaned.endsWith("?") || questionPrefixRegex.containsMatchIn(cleaned)) return false
++        if (negatedActionRegex.containsMatchIn(cleaned)) return false
++        if (!concreteActionVerbRegex.containsMatchIn(cleaned)) return false
++        return assignmentRegex.containsMatchIn(cleaned) ||
++            commitmentRegex.containsMatchIn(cleaned) ||
++            explicitTaskPrefixRegex.containsMatchIn(cleaned) ||
++            imperativeActionRegex.containsMatchIn(cleaned)
++    }
++
++    fun extract(text: String, evidenceSegmentIds: List<String>): ActionItem? {
++        if (!isActionable(text)) return null
++        val task = normalizeTask(text)
++        if (task.split(Regex("\\s+")).count(String::isNotBlank) < 3) return null
++        return ActionItem(
++            task = task,
++            assignee = extractAssignee(text),
++            dueDate = extractDueDate(text),
++            evidenceSegmentIds = evidenceSegmentIds.filter(String::isNotBlank).distinct()
++        )
++    }
++
++    private fun normalizeTask(text: String): String {
++        val withoutPrefix = normalizeWhitespace(text)
++            .replace(explicitTaskPrefixRegex, "")
++            .replace(pronounCommitmentPrefixRegex, "")
++            .trim(' ', '-', ':', ';', '.', ',')
++        return withoutPrefix.replaceFirstChar { first ->
++            if (first.isLowerCase()) first.titlecase() else first.toString()
++        }
++    }
++
++    private fun extractAssignee(text: String): String? {
++        val match = assigneePatterns.firstNotNullOfOrNull { it.find(text) } ?: return null
++        val candidate = match.groupValues.getOrNull(1)
++            ?.trim(' ', ',', '.', ':', ';')
++            ?.replace(Regex("\\s+"), " ")
++            ?.takeIf(String::isNotBlank)
++            ?: return null
++        if (candidate.lowercase() in nonPersonLabels) return null
++        return candidate
++    }
++
++    private fun extractDueDate(text: String): String? {
++        return dateRegex.find(text)?.value
++            ?: relativeDueDateRegex.find(text)?.value
++            ?: duePhraseRegex.find(text)?.groupValues?.getOrNull(1)?.trim()
++    }
++
++    private fun normalizeWhitespace(text: String): String = text.replace(Regex("\\s+"), " ").trim()
++
++    private val personToken = """[\p{L}][\p{L}\p{N}_-]*"""
++    private val namePattern = """$personToken(?:\s+$personToken){0,2}?"""
++    private val actionVerbStart = """(?:gửi|hoàn\s+thành|kiểm\s+tra|cập\s+nhật|chuẩn\s+bị|triển\s+khai|sửa|tạo|viết|liên\s+hệ|gọi|rà\s+soát|xác\s+nhận|nộp|phát\s+hành|lên\s+lịch|theo\s+dõi|send|finish|complete|review|update|prepare|implement|fix|create|write|contact|call|verify|submit|publish|schedule|follow\s+up)"""
++    private val assigneePatterns = listOf(
++        Regex("""(?:giao(?:\s+việc)?\s+cho|phân\s+công(?:\s+cho)?|nhờ)\s+($namePattern)(?=\s+$actionVerbStart)""", RegexOption.IGNORE_CASE),
++        Regex("""(?:assigned\s+to|ask(?:ed)?|owner\s*:)\s+($namePattern)(?=\s+(?:to\s+)?$actionVerbStart)""", RegexOption.IGNORE_CASE),
++        Regex("""\b($namePattern)\s+(?:sẽ\s+phụ\s+trách|chịu\s+trách\s+nhiệm|phụ\s+trách|will\s+$actionVerbStart)\b""", RegexOption.IGNORE_CASE)
++    )
++    private val nonPersonLabels = setOf(
++        "tôi", "mình", "chúng ta", "chúng tôi", "bạn", "mọi người", "team", "nhóm",
++        "i", "we", "you", "they", "everyone", "the team"
++    )
++
++    private val explicitTaskPrefixRegex = Regex(
++        "^(?:action\\s*item|todo|task|việc\\s+cần\\s+làm|công\\s+việc)\\s*[:\\-]\\s*",
++        RegexOption.IGNORE_CASE
++    )
++    private val pronounCommitmentPrefixRegex = Regex(
++        "^(?:(?:chúng\\s+ta|chúng\\s+tôi|tôi|mình)\\s+(?:cần|phải|sẽ)\\s+|(?:we|i)\\s+(?:need\\s+to|have\\s+to|will)\\s+)",
++        RegexOption.IGNORE_CASE
++    )
++    private val assignmentRegex = Regex(
++        "\\b(?:giao(?:\\s+việc)?\\s+cho|phân\\s+công|nhờ|phụ\\s+trách|chịu\\s+trách\\s+nhiệm|assign(?:ed)?\\s+to|owner\\s*:|ask(?:ed)?)\\b",
++        RegexOption.IGNORE_CASE
++    )
++    private val commitmentRegex = Regex(
++        "\\b(?:tôi|mình|chúng\\s+ta|chúng\\s+tôi|[\\p{L}][\\p{L}\\p{N}_-]+)\\s+(?:sẽ|cần|phải)\\s+|\\b(?:i|we|[A-Z][a-z]+)\\s+(?:will|need\\s+to|have\\s+to)\\s+",
++        RegexOption.IGNORE_CASE
++    )
++    private val imperativeActionRegex = Regex(
++        "^(?:(?:hãy|vui\\s+lòng|please)\\s+)?(?:gửi|hoàn\\s+thành|kiểm\\s+tra|cập\\s+nhật|chuẩn\\s+bị|triển\\s+khai|sửa|tạo|viết|liên\\s+hệ|gọi|rà\\s+soát|xác\\s+nhận|nộp|phát\\s+hành|send|finish|complete|review|update|prepare|implement|fix|create|write|contact|call|verify|submit|publish|schedule|follow\\s+up)\\b",
++        RegexOption.IGNORE_CASE
++    )
++    private val concreteActionVerbRegex = Regex(
++        "\\b(?:gửi|hoàn\\s+thành|kiểm\\s+tra|cập\\s+nhật|chuẩn\\s+bị|triển\\s+khai|sửa|tạo|viết|liên\\s+hệ|gọi|rà\\s+soát|xác\\s+nhận|nộp|phát\\s+hành|lên\\s+lịch|theo\\s+dõi|send|finish|complete|review|update|prepare|implement|fix|create|write|contact|call|verify|submit|publish|schedule|follow\\s+up)\\b",
++        RegexOption.IGNORE_CASE
++    )
++    private val negatedActionRegex = Regex(
++        "\\b(?:không|chưa)\\s+(?:cần|phải|nên|sẽ|gửi|làm|triển\\s+khai|hoàn\\s+thành)|\\b(?:do\\s+not|don't|doesn't|didn't|no\\s+need\\s+to|not\\s+going\\s+to)\\b",
++        RegexOption.IGNORE_CASE
++    )
++    private val questionPrefixRegex = Regex(
++        "^(?:ai|khi\\s+nào|bao\\s+giờ|tại\\s+sao|vì\\s+sao|liệu|who|when|why|how|should\\s+we|can\\s+we|could\\s+we)\\b",
++        RegexOption.IGNORE_CASE
++    )
++    private val dateRegex = Regex(
++        "\\b(?:\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}[/-]\\d{1,2}(?:[/-]\\d{2,4})?)\\b"
++    )
++    private val relativeDueDateRegex = Regex(
++        "\\b(?:hôm\\s+nay|ngày\\s+mai|cuối\\s+tuần(?:\\s+này)?|đầu\\s+tuần\\s+sau|tuần\\s+sau|cuối\\s+tháng(?:\\s+này)?|thứ\\s+hai|thứ\\s+ba|thứ\\s+tư|thứ\\s+năm|thứ\\s+sáu|thứ\\s+bảy|chủ\\s+nhật|today|tomorrow|this\\s+weekend|end\\s+of\\s+(?:the\\s+)?week|next\\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\\b",
++        RegexOption.IGNORE_CASE
++    )
++    private val duePhraseRegex = Regex(
++        "(?:trước|hạn|đến|by|before|due)\\s+([^,.;]{2,40})",
++        RegexOption.IGNORE_CASE
++    )
++}
+diff --git a/new/core/offlineai/src/test/java/com/loomora/core/offlineai/HeuristicActionItemExtractorTest.kt b/core/offlineai/src/test/java/com/loomora/core/offlineai/HeuristicActionItemExtractorTest.kt
+new file mode 100644
+index 0000000..8eea90a
+--- /dev/null
++++ b/core/offlineai/src/test/java/com/loomora/core/offlineai/HeuristicActionItemExtractorTest.kt
+@@ -0,0 +1,42 @@
++package com.loomora.core.offlineai
++
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertNull
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++class HeuristicActionItemExtractorTest {
++    @Test
++    fun extractsVietnameseAssignmentAndDueDate() {
++        val item = HeuristicActionItemExtractor.extract(
++            "Giao cho Lan cập nhật báo cáo trước thứ Sáu.",
++            listOf("segment-1")
++        )
++
++        requireNotNull(item)
++        assertEquals("Lan", item.assignee)
++        assertEquals("thứ Sáu", item.dueDate)
++        assertEquals(listOf("segment-1"), item.evidenceSegmentIds)
++    }
++
++    @Test
++    fun rejectsQuestionAndNegatedTask() {
++        assertFalse(HeuristicActionItemExtractor.isActionable("Ai sẽ gửi báo cáo vào ngày mai?"))
++        assertFalse(HeuristicActionItemExtractor.isActionable("Chúng ta không cần gửi báo cáo nữa."))
++        assertNull(HeuristicActionItemExtractor.extract("Chúng ta không cần gửi báo cáo nữa.", emptyList()))
++    }
++
++    @Test
++    fun extractsEnglishCommitment() {
++        val item = HeuristicActionItemExtractor.extract(
++            "Minh will send the approved design by Friday.",
++            listOf("segment-2")
++        )
++
++        requireNotNull(item)
++        assertEquals("Minh", item.assignee)
++        assertEquals("Friday", item.dueDate)
++        assertTrue(item.task.contains("send", ignoreCase = true))
++    }
++}
+diff --git a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailDialogs.kt b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailDialogs.kt
+index 29a3da8..c562778 100644
+--- a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailDialogs.kt
++++ b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailDialogs.kt
+@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.unit.dp
+ import com.loomora.core.datastore.DefaultAnalysisMode
++import com.loomora.core.database.entity.RecordingTaskEntity
++import java.util.Locale
+ 
+ @Composable
+ internal fun RenameRecordingDialog(currentTitle: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+@@ -92,6 +94,64 @@ internal fun EditInsightsDialog(
+     )
+ }
+ 
++@Composable
++internal fun EditTaskDialog(
++    task: RecordingTaskEntity,
++    onConfirm: (String, String?, String?) -> Unit,
++    onDismiss: () -> Unit
++) {
++    var title by remember(task.id, task.title) { mutableStateOf(task.title) }
++    var assignee by remember(task.id, task.assignee) { mutableStateOf(task.assignee.orEmpty()) }
++    var dueDate by remember(task.id, task.dueDate) { mutableStateOf(task.dueDate.orEmpty()) }
++    val vietnamese = Locale.getDefault().language.equals("vi", ignoreCase = true)
++    AlertDialog(
++        onDismissRequest = onDismiss,
++        title = { Text(if (vietnamese) "Chỉnh sửa việc cần làm" else "Edit action item") },
++        text = {
++            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
++                OutlinedTextField(
++                    value = title,
++                    onValueChange = { title = it },
++                    modifier = Modifier.fillMaxWidth(),
++                    label = { Text(if (vietnamese) "Nội dung công việc" else "Task") },
++                    minLines = 2,
++                    maxLines = 4
++                )
++                OutlinedTextField(
++                    value = assignee,
++                    onValueChange = { assignee = it },
++                    modifier = Modifier.fillMaxWidth(),
++                    label = { Text(if (vietnamese) "Người phụ trách" else "Assignee") },
++                    singleLine = true
++                )
++                OutlinedTextField(
++                    value = dueDate,
++                    onValueChange = { dueDate = it },
++                    modifier = Modifier.fillMaxWidth(),
++                    label = { Text(if (vietnamese) "Hạn hoàn thành" else "Due date") },
++                    supportingText = {
++                        Text(if (vietnamese) "Có thể nhập ngày cụ thể hoặc mô tả như: thứ Sáu, cuối tuần." else "Use a date or a phrase such as Friday or end of week.")
++                    },
++                    singleLine = true
++                )
++            }
++        },
++        confirmButton = {
++            TextButton(
++                onClick = {
++                    onConfirm(
++                        title.trim(),
++                        assignee.trim().takeIf(String::isNotBlank),
++                        dueDate.trim().takeIf(String::isNotBlank)
++                    )
++                },
++                enabled = title.isNotBlank()
++            ) { Text(stringResource(R.string.detail_save)) }
++        },
++        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.detail_cancel)) } }
++    )
++}
++
+ @Composable
+ internal fun DeleteRecordingDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+     AlertDialog(
+diff --git a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailRoute.kt b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailRoute.kt
+index 1d7e806..e3a4a49 100644
+--- a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailRoute.kt
++++ b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailRoute.kt
+@@ -72,6 +72,9 @@ fun RecordingDetailRoute(
+         onDismissMissingModelMessage = viewModel::dismissMissingModelMessage,
+         onRenameSpeaker = viewModel::renameSpeaker,
+         onUpdateInsights = viewModel::updateInsights,
++        onSetTaskCompleted = viewModel::setTaskCompleted,
++        onUpdateTask = viewModel::updateTask,
++        onArchiveTask = viewModel::archiveTask,
+         modifier = modifier
+     )
+ }
+diff --git a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
+index 5abd769..3a07a7e 100644
+--- a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
++++ b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
+@@ -32,6 +32,7 @@ import androidx.compose.material3.AlertDialog
+ import androidx.compose.material3.Button
+ import androidx.compose.material3.Card
+ import androidx.compose.material3.CardDefaults
++import androidx.compose.material3.Checkbox
+ import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.material3.Icon
+ import androidx.compose.material3.IconButton
+@@ -57,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.text.style.TextDecoration
+ import androidx.compose.ui.unit.dp
+ import androidx.hilt.navigation.compose.hiltViewModel
+ import com.loomora.core.audio.model.PlayerState
+@@ -69,6 +71,7 @@ import com.loomora.core.model.AiJobStatus
+ import com.loomora.core.model.AiProcessingStage
+ import com.loomora.core.model.RecordingOperationResult
+ import com.loomora.core.datastore.DefaultAnalysisMode
++import com.loomora.core.database.entity.RecordingTaskEntity
+ import com.loomora.core.offlineai.TranscriptSpeakerFusion
+ import java.io.File
+ import java.text.DateFormat
+@@ -104,6 +107,9 @@ fun RecordingDetailScreen(
+     onDismissMissingModelMessage: () -> Unit,
+     onRenameSpeaker: (String, String) -> Unit,
+     onUpdateInsights: (String, String) -> Unit,
++    onSetTaskCompleted: (String, Boolean) -> Unit,
++    onUpdateTask: (String, String, String?, String?) -> Unit,
++    onArchiveTask: (String) -> Unit,
+     modifier: Modifier = Modifier
+ ) {
+     var selectedTab by remember { mutableStateOf(RecordingDetailTab.OVERVIEW) }
+@@ -114,6 +120,7 @@ fun RecordingDetailScreen(
+     var showDeleteDialog by remember { mutableStateOf(false) }
+     var pendingDeleteAction by remember { mutableStateOf<DeleteAction?>(null) }
+     var showInsightEditDialog by remember { mutableStateOf(false) }
++    var taskEditTarget by remember { mutableStateOf<RecordingTaskEntity?>(null) }
+ 
+     Scaffold(
+         topBar = {
+@@ -579,7 +586,14 @@ fun RecordingDetailScreen(
+                                     InsightList(stringResource(R.string.detail_insight_decisions), insights.decisions)
+                                     InsightList(stringResource(R.string.detail_insight_suggestions), insights.suggestions)
+                                     InsightList(stringResource(R.string.detail_insight_questions), insights.openQuestions)
+-                                    if (insights.actionItems.isNotEmpty()) {
++                                    if (uiState.tasks.isNotEmpty()) {
++                                        RecordingTaskList(
++                                            tasks = uiState.tasks,
++                                            onSetCompleted = onSetTaskCompleted,
++                                            onEdit = { taskEditTarget = it },
++                                            onArchive = onArchiveTask
++                                        )
++                                    } else if (insights.actionItems.isNotEmpty()) {
+                                         InsightList(
+                                             title = stringResource(R.string.detail_insight_actions),
+                                             values = insights.actionItems.map { item ->
+@@ -598,7 +612,7 @@ fun RecordingDetailScreen(
+                                         )
+                                     }
+                                     if (insights.keyPoints.isEmpty() && insights.decisions.isEmpty() &&
+-                                        insights.actionItems.isEmpty() && insights.openQuestions.isEmpty() &&
++                                        insights.actionItems.isEmpty() && uiState.tasks.isEmpty() && insights.openQuestions.isEmpty() &&
+                                         insights.suggestions.isEmpty()
+                                     ) {
+                                         Text(
+@@ -787,6 +801,17 @@ fun RecordingDetailScreen(
+         }
+     }
+ 
++    taskEditTarget?.let { task ->
++        EditTaskDialog(
++            task = task,
++            onConfirm = { title, assignee, dueDate ->
++                onUpdateTask(task.id, title, assignee, dueDate)
++                taskEditTarget = null
++            },
++            onDismiss = { taskEditTarget = null }
++        )
++    }
++
+     if (showRenameDialog && uiState.recording != null) {
+         RenameRecordingDialog(
+             currentTitle = uiState.recording.title,
+@@ -849,6 +874,87 @@ private fun OperationResultBanner(
+     )
+ }
+ 
++@Composable
++private fun RecordingTaskList(
++    tasks: List<RecordingTaskEntity>,
++    onSetCompleted: (String, Boolean) -> Unit,
++    onEdit: (RecordingTaskEntity) -> Unit,
++    onArchive: (String) -> Unit
++) {
++    if (tasks.isEmpty()) return
++    val vietnamese = Locale.getDefault().language.equals("vi", ignoreCase = true)
++    Spacer(modifier = Modifier.height(10.dp))
++    Text(
++        text = stringResource(R.string.detail_insight_actions),
++        style = MaterialTheme.typography.labelLarge,
++        color = MaterialTheme.colorScheme.onSurfaceVariant
++    )
++    Spacer(modifier = Modifier.height(6.dp))
++    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
++        tasks.forEach { task ->
++            Card(
++                modifier = Modifier.fillMaxWidth(),
++                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
++            ) {
++                Row(
++                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
++                    verticalAlignment = Alignment.Top
++                ) {
++                    Checkbox(
++                        checked = task.isCompleted,
++                        onCheckedChange = { onSetCompleted(task.id, it) }
++                    )
++                    Column(
++                        modifier = Modifier.weight(1f).padding(top = 8.dp),
++                        verticalArrangement = Arrangement.spacedBy(3.dp)
++                    ) {
++                        Text(
++                            text = task.title,
++                            style = MaterialTheme.typography.bodyMedium,
++                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
++                            color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
++                        )
++                        val metadata = buildList {
++                            task.assignee?.let { add((if (vietnamese) "Phụ trách: " else "Owner: ") + it) }
++                            task.dueDate?.let { add((if (vietnamese) "Hạn: " else "Due: ") + it) }
++                        }
++                        if (metadata.isNotEmpty()) {
++                            Text(
++                                text = metadata.joinToString(" • "),
++                                style = MaterialTheme.typography.labelSmall,
++                                color = MaterialTheme.colorScheme.onSurfaceVariant
++                            )
++                        }
++                        Text(
++                            text = if (task.sourceGenerationMode == "LLM_ENHANCED") {
++                                if (vietnamese) "Tạo bởi AI cục bộ" else "Generated by local AI"
++                            } else {
++                                if (vietnamese) "Trích xuất cục bộ — cần xác nhận" else "Local extraction — review recommended"
++                            },
++                            style = MaterialTheme.typography.labelSmall,
++                            color = MaterialTheme.colorScheme.primary
++                        )
++                    }
++                    Column {
++                        IconButton(onClick = { onEdit(task) }) {
++                            Icon(
++                                imageVector = Icons.Default.Edit,
++                                contentDescription = if (vietnamese) "Sửa việc cần làm" else "Edit task"
++                            )
++                        }
++                        IconButton(onClick = { onArchive(task.id) }) {
++                            Icon(
++                                imageVector = Icons.Default.Delete,
++                                contentDescription = if (vietnamese) "Ẩn việc cần làm" else "Archive task"
++                            )
++                        }
++                    }
++                }
++            }
++        }
++    }
++}
++
+ @Composable
+ private fun InsightList(
+     title: String,
+diff --git a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailViewModel.kt b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailViewModel.kt
+index ae01ae3..317d97c 100644
+--- a/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailViewModel.kt
++++ b/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailViewModel.kt
+@@ -13,7 +13,9 @@ import com.loomora.core.audio.waveform.WaveformAlgorithm
+ import com.loomora.core.audio.waveform.WaveformLoadState
+ import com.loomora.core.audio.waveform.WaveformRepository
+ import com.loomora.core.database.dao.MarkerDao
++import com.loomora.core.database.dao.RecordingTaskDao
+ import com.loomora.core.database.entity.MarkerEntity
++import com.loomora.core.database.entity.RecordingTaskEntity
+ import com.loomora.core.model.AiJobStatus
+ import com.loomora.core.model.AiProcessingStage
+ import com.loomora.core.model.DiarizationRevision
+@@ -48,16 +50,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.combine
++import kotlinx.coroutines.flow.collectLatest
+ import kotlinx.coroutines.flow.flatMapLatest
+ import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.filterNotNull
+ import kotlinx.coroutines.flow.stateIn
+ import kotlinx.coroutines.launch
++import java.util.UUID
+ import javax.inject.Inject
+ 
+ data class RecordingDetailUiState(
+     val recording: Recording? = null,
+     val markers: List<MarkerEntity> = emptyList(),
++    val tasks: List<RecordingTaskEntity> = emptyList(),
+     val playerState: PlayerState = PlayerState.Idle,
+     val aiJobStatus: AiJobStatus = AiJobStatus.Idle,
+     val isLoading: Boolean = true,
+@@ -95,6 +101,7 @@ class RecordingDetailViewModel @Inject constructor(
+     @ApplicationContext private val context: Context,
+     private val recordingRepository: RecordingRepository,
+     private val markerDao: MarkerDao,
++    private val recordingTaskDao: RecordingTaskDao,
+     private val recordingStorageManager: RecordingStorageManager,
+     private val waveformRepository: WaveformRepository,
+     val audioPlayerEngine: AudioPlayerEngine,
+@@ -154,6 +161,11 @@ class RecordingDetailViewModel @Inject constructor(
+         if (id != null) insightRepository.observeLatestInsight(id) else flowOf(null)
+     }
+ 
++    @OptIn(ExperimentalCoroutinesApi::class)
++    private val tasksFlow = _recordingIdFlow.flatMapLatest { id ->
++        if (id != null) recordingTaskDao.observeTasksForRecording(id) else flowOf(emptyList())
++    }
++
+     @OptIn(ExperimentalCoroutinesApi::class)
+     private val roomAiJobStatusFlow = _recordingIdFlow.flatMapLatest { id ->
+         if (id != null) {
+@@ -233,12 +245,24 @@ class RecordingDetailViewModel @Inject constructor(
+             isTranscriptionModelMissing = modelMissing,
+             isDiarizationModelMissing = speakerModelMissing
+         )
++    }.let { baseStateFlow ->
++        combine(baseStateFlow, tasksFlow) { state, tasks ->
++            state.copy(tasks = tasks)
++        }
+     }.stateIn(
+         scope = viewModelScope,
+         started = SharingStarted.WhileSubscribed(5000),
+         initialValue = RecordingDetailUiState()
+     )
+ 
++    init {
++        viewModelScope.launch {
++            insightsFlow.filterNotNull().collectLatest { revision ->
++                syncGeneratedTasks(revision)
++            }
++        }
++    }
++
+     fun playAudio() {
+         val recording = uiState.value.recording ?: return
+         audioPlayerEngine.playAudio(recording.id, recording.originalFileUri)
+@@ -449,6 +473,83 @@ class RecordingDetailViewModel @Inject constructor(
+         }
+     }
+ 
++    fun setTaskCompleted(taskId: String, completed: Boolean) {
++        val now = System.currentTimeMillis()
++        viewModelScope.launch {
++            recordingTaskDao.updateStatus(
++                taskId = taskId,
++                status = if (completed) RecordingTaskEntity.STATUS_DONE else RecordingTaskEntity.STATUS_TODO,
++                completedAt = now.takeIf { completed },
++                updatedAt = now
++            )
++        }
++    }
++
++    fun updateTask(taskId: String, title: String, assignee: String?, dueDate: String?) {
++        val cleanTitle = title.replace(Regex("\\s+"), " ").trim()
++        if (cleanTitle.isBlank()) return
++        viewModelScope.launch {
++            recordingTaskDao.updateContent(
++                taskId = taskId,
++                title = cleanTitle,
++                assignee = assignee?.trim()?.takeIf(String::isNotBlank),
++                dueDate = dueDate?.trim()?.takeIf(String::isNotBlank),
++                updatedAt = System.currentTimeMillis()
++            )
++        }
++    }
++
++    fun archiveTask(taskId: String) {
++        viewModelScope.launch {
++            recordingTaskDao.archive(taskId, System.currentTimeMillis())
++        }
++    }
++
++    private suspend fun syncGeneratedTasks(revision: InsightRevision) {
++        val targetRecordingId = recordingId ?: return
++        val now = System.currentTimeMillis()
++        val generated = revision.insights.actionItems.mapIndexedNotNull { index, item ->
++            val title = item.task.replace(Regex("\\s+"), " ").trim()
++            if (title.isBlank()) return@mapIndexedNotNull null
++            val assignee = item.assignee?.trim()?.takeIf(String::isNotBlank)
++            val dueDate = item.dueDate?.trim()?.takeIf(String::isNotBlank)
++            val normalizedIdentity = listOf(
++                targetRecordingId,
++                normalizeTaskIdentity(title)
++            ).joinToString("|")
++            RecordingTaskEntity(
++                id = UUID.nameUUIDFromBytes(normalizedIdentity.toByteArray(Charsets.UTF_8)).toString(),
++                recordingId = targetRecordingId,
++                sourceInsightRevisionId = revision.id,
++                sourceActionIndex = index,
++                title = title,
++                assignee = assignee,
++                dueDate = dueDate,
++                evidenceSegmentIdsCsv = item.evidenceSegmentIds.joinToString(","),
++                sourceGenerationMode = revision.generationMode,
++                createdAt = now + index,
++                updatedAt = now
++            )
++        }.distinctBy(RecordingTaskEntity::id)
++        if (generated.isNotEmpty()) {
++            recordingTaskDao.insertGeneratedTasks(generated)
++            generated.forEach { task ->
++                recordingTaskDao.updateSourceMetadata(
++                    taskId = task.id,
++                    sourceInsightRevisionId = task.sourceInsightRevisionId,
++                    sourceActionIndex = task.sourceActionIndex,
++                    sourceGenerationMode = task.sourceGenerationMode,
++                    updatedAt = now
++                )
++            }
++        }
++    }
++
++    private fun normalizeTaskIdentity(value: String): String = value
++        .lowercase()
++        .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
++        .trim()
++
+     private fun List<AnalysisJobEntity>.toAiJobStatus(insightRevision: InsightRevision?): AiJobStatus {
+         val job = maxByOrNull { it.updatedAt } ?: return AiJobStatus.Idle
+         return when (job.status) {
+@@ -526,9 +627,21 @@ internal fun formatInsightsText(state: RecordingDetailUiState): String {
+         }
+         appendList(headingNotes, insights.keyPoints)
+         appendList(headingDecisions, insights.decisions)
+-        appendList(headingTasks, insights.actionItems.map { item ->
+-            listOfNotNull(item.task, item.assignee, item.dueDate).joinToString(" - ")
+-        })
++        val taskLines = if (state.tasks.isNotEmpty()) {
++            state.tasks.map { task ->
++                buildString {
++                    append(if (task.isCompleted) "[x] " else "[ ] ")
++                    append(task.title)
++                    task.assignee?.let { append(" - $it") }
++                    task.dueDate?.let { append(" - $it") }
++                }
++            }
++        } else {
++            insights.actionItems.map { item ->
++                listOfNotNull(item.task, item.assignee, item.dueDate).joinToString(" - ")
++            }
++        }
++        appendList(headingTasks, taskLines)
+         appendList(headingQuestions, insights.openQuestions)
+ 
+         val speakerRows = TranscriptSpeakerFusion.compact(transcript?.segments.orEmpty())
