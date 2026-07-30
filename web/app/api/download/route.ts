@@ -6,7 +6,10 @@ export const runtime = 'nodejs';
 
 function getConfiguredApkUrl() {
   const apkUrl = process.env.NEXT_PUBLIC_APK_URL;
-  return apkUrl && /^https?:\/\//i.test(apkUrl) ? apkUrl : null;
+  if (apkUrl && /^https?:\/\//i.test(apkUrl) && !apkUrl.includes('android-v1.0.1')) {
+    return apkUrl;
+  }
+  return 'https://github.com/dark9th5/Loomora/releases/download/android-v1.0.2/app-release.apk';
 }
 
 export async function GET(request: NextRequest) {
