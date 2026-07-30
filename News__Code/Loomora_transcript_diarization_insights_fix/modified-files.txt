@@ -1,0 +1,12 @@
+core/offlineai/src/main/java/com/loomora/core/offlineai/AudioTranscriptionPreprocessor.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/ExtractiveMeetingInsightEngine.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/FallbackMeetingInsightEngine.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/LiteRtLmMeetingInsightEngine.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/LlamaCppMeetingInsightEngine.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/OfflineAiModels.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/SherpaOnnxDiarizationEngine.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptSpeakerFusion.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptTextSegmenter.kt
+core/offlineai/src/main/java/com/loomora/core/offlineai/di/OfflineAiModule.kt
+feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
+feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailViewModel.kt

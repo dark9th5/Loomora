@@ -1,0 +1,17 @@
+44a4fcd8465e273defba054aa59744749b48fd4c72e4456b7d22fd91e9a79c2f  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/AudioTranscriptionPreprocessor.kt
+3a44dcd1ed62a1947e1a51725cb0c5a963365b0e5add83260e5fdb69140a8e53  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/ExtractiveMeetingInsightEngine.kt
+b07fed1948f28aaa676066199320ad53f90d6eb8592387e435dae58e5b1d4705  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/FallbackMeetingInsightEngine.kt
+3e2b2ec1726091d3fea6d6e02555d122bcf198f2066bb82ec94fd70f9230bf2b  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/LiteRtLmMeetingInsightEngine.kt
+fe7a350a5bb2870dc14ac6afdc39fef63552a64e6b234941a75746ca68599563  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/LlamaCppMeetingInsightEngine.kt
+281e771d4b8353f999ebdc78b7906b5a854eb9619cadd1acfe3542a97bc8e36d  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/OfflineAiModels.kt
+2143ea26fa0e01e1c6c9f91e7bee8cf1ccee28e22bb129cf47d78078dff3dfb1  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/SherpaOnnxDiarizationEngine.kt
+f45bef60324ee531cf0ba245cf4894653c9ee09739f4e2267f8f2d72c5d07603  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptSpeakerFusion.kt
+49269f367c8c5858ad682bed6cceb5818171c83575ed5d72d22da86e4e1b0762  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/TranscriptTextSegmenter.kt
+c5e32d969dfc8df0bf1328d65d441196ab9613c11a872933bd7006e7fbd91a9b  ./Loomora-fix/core/offlineai/src/main/java/com/loomora/core/offlineai/di/OfflineAiModule.kt
+16213cd09c7d231be863dea79dfaf7f948eba3fdd419d1f6b50d918c759ee010  ./Loomora-fix/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailScreen.kt
+c03fbc3ee80df810dc0fdbe6abdee3a9ee1f8af0454f22fcc3f90969e814b2ff  ./Loomora-fix/feature/recordingdetail/src/main/java/com/loomora/feature/recordingdetail/RecordingDetailViewModel.kt
+7831364296eb04ff9f99edc8a509ec6785aa75ac3df20baf091ee87fbaacac0e  ./README_VI.md
+54a9654264f23ade55297bd323a17d804160d6770bb6465417bddf83c33c7fc1  ./apply-loomora-fix.ps1
+4e605bf2f2c7ce73721531d2fb7b99818a77b3c120ad815b5944a4b7ca7df2a2  ./apply-loomora-fix.sh
+f4784c306f773d5cdb5d85782c48df5e9afcb18c86383b809ed0f876f32d5e79  ./modified-files.txt
+6b4993b6d5661be3df524b205cf8ee9f04c64ce39c00354c84a881909269e1d6  ./verification/VERIFY_RESULTS.txt

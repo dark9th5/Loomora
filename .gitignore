@@ -62,3 +62,4 @@ web/*.log
 Thumbs.db
 
 .vercel
+.loomora-backup*

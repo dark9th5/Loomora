@@ -1,0 +1,10 @@
+Verification performed on 2026-07-30
+
+PASS: TranscriptTextSegmenter + TranscriptSpeakerFusion compiled with kotlinc.
+PASS: HeuristicMeetingInsightEngine compiled with Kotlin/coroutines stubs.
+PASS: FallbackMeetingInsightEngine model routing compiled with stubs.
+PASS: Simulated 35-word continuous Speaker 1 speech with an 800 ms false Speaker 2 island collapsed to one Speaker 1 row.
+PASS: Simulated genuine 2.8-second Speaker 2 turn remained separate.
+PASS: Projected text pieces were never 2-3 words in the verification case.
+
+Not performed: full Android Gradle build, instrumentation tests, and on-device Sherpa/LiteRT inference.
