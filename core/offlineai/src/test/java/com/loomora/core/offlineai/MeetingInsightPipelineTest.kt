@@ -169,6 +169,7 @@ class MeetingInsightPipelineTest {
         try {
             val output = FallbackMeetingInsightEngine(
                 heuristic = HeuristicMeetingInsightEngine(json),
+                liteRtLm = LiteRtLmMeetingInsightEngine(context, parser, TranscriptChunker()),
                 llamaCpp = LlamaCppMeetingInsightEngine(parser, TranscriptChunker(), UnavailableLlamaCppRuntime())
             ).analyze(input)
 
