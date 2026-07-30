@@ -1,0 +1,29 @@
+<resources>
+    <string name="home_title">Loomora</string>
+    <string name="home_tagline">Ghi âm thông minh và ghi chú AI cục bộ</string>
+    <string name="home_settings">Cài đặt</string>
+    <string name="home_new_recording">Bản ghi mới</string>
+    <string name="home_quick_modes">Chế độ ghi nhanh</string>
+    <string name="home_mode_meeting">Cuộc họp</string>
+    <string name="home_mode_interview">Phỏng vấn</string>
+    <string name="home_mode_lecture">Bài giảng</string>
+    <string name="home_mode_voicenote">Ghi chú giọng nói</string>
+    <string name="home_recent_recordings">Bản ghi gần đây</string>
+    <string name="home_empty_title">Chưa có bản ghi</string>
+    <string name="home_empty_desc">Bắt đầu ghi chú âm thanh đầu tiên khi bạn sẵn sàng.</string>
+    <string name="home_start_record_cta">Bắt đầu ghi âm</string>
+    <string name="home_greeting">Ghi lại điều quan trọng</string>
+    <string name="home_trial_remaining">Còn %1$d/%2$d lượt dùng thử AI</string>
+    <string name="home_active_ai_title">AI đang xử lý</string>
+    <string name="home_active_ai_message">Đang xử lý cục bộ %1$s</string>
+    <string name="home_view_all">Xem tất cả</string>
+    <string name="home_mode_meeting_desc">Ghi chú có cấu trúc cho thảo luận nhóm</string>
+    <string name="home_mode_interview_desc">Làm rõ giọng hỏi và trả lời</string>
+    <string name="home_mode_lecture_desc">Ghi nội dung dài cho lớp học và bài nói</string>
+    <string name="home_mode_voicenote_desc">Ghi nhanh một ý tưởng</string>
+    <string name="home_status_audio_only">Chỉ có âm thanh</string>
+    <string name="home_status_transcript">Đã có bản chép lời</string>
+    <string name="home_status_transcript_insights">Đã có bản chép lời và phân tích</string>
+    <string name="home_status_processing">AI đang xử lý cục bộ</string>
+    <string name="home_status_failed">Cần kiểm tra lại xử lý AI</string>
+</resources>

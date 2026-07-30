@@ -1,140 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App & Brand -->
     <string name="app_name">Loomora</string>
-    <string name="app_tagline">Ghi Âm Thông Minh &amp; Ghi Chú AI</string>
+    <string name="app_tagline">Ghi âm thông minh &amp; ghi chú AI</string>
 
-    <!-- Navigation -->
     <string name="nav_home">Trang chủ</string>
-    <string name="nav_recorder">Ghi âm</string>
     <string name="nav_library">Thư viện</string>
     <string name="nav_settings">Cài đặt</string>
-    <string name="nav_subscription">Gói Pro &amp; Dùng thử</string>
 
-    <!-- Onboarding -->
-    <string name="onboarding_welcome_title">Chào mừng đến với Loomora</string>
-    <string name="onboarding_welcome_desc">Ghi âm cuộc họp, bài giảng và ghi chú giọng nói rõ ràng. Biến ý tưởng thành thông tin hữu ích.</string>
-    <string name="onboarding_local_first_title">Ưu tiên dữ liệu cục bộ &amp; Bảo mật</string>
-    <string name="onboarding_local_first_desc">Bản ghi của bạn lưu an toàn trên thiết bị. Không cần tài khoản hay Internet để ghi âm, nghe lại và quản lý file.</string>
-    <string name="onboarding_permission_title">Quyền truy cập Micro</string>
-    <string name="onboarding_permission_desc">Loomora cần quyền sử dụng micro để ghi âm rõ ràng khi bạn bắt đầu một bản ghi mới.</string>
-    <string name="onboarding_btn_next">Tiếp theo</string>
-    <string name="onboarding_btn_get_started">Bắt đầu ngay</string>
-
-    <!-- Home Screen -->
-    <string name="home_title">Loomora</string>
-    <string name="home_new_recording">Bản ghi mới</string>
-    <string name="home_quick_modes">Chế độ ghi nhanh</string>
-    <string name="home_mode_meeting">Cuộc họp</string>
-    <string name="home_mode_interview">Phỏng vấn</string>
-    <string name="home_mode_lecture">Bài giảng</string>
-    <string name="home_mode_voicenote">Ghi chú nhanh</string>
-    <string name="home_recent_recordings">Bản ghi gần đây</string>
-    <string name="home_empty_title">Chưa có bản ghi nào</string>
-    <string name="home_empty_desc">Nhấn nút ghi âm bên dưới để tạo ghi chú âm thanh đầu tiên của bạn.</string>
-    <string name="home_start_record_cta">Bắt đầu ghi âm</string>
-
-    <!-- Library Screen -->
-    <string name="library_title">Thư viện</string>
-    <string name="library_search_hint">Tìm kiếm bản ghi hoặc thẻ…</string>
-    <string name="library_empty_title">Thư viện đang trống</string>
-    <string name="library_empty_desc">Các bản ghi âm đã lưu sẽ xuất hiện tại đây.</string>
-    <string name="library_filter_favorites">Yeu thich</string>
-    <string name="library_filter_trash">Thung rac</string>
-    <string name="library_storage_title">Dung luong luu tru cuc bo</string>
-    <string name="library_storage_low_space_warning">Bo nho trong dang thap, co the lam gian doan ghi am hoac xuat tep.</string>
-    <string name="library_storage_recordings">Ban ghi: %1$s</string>
-    <string name="library_storage_exports">Ban xuat: %1$s</string>
-    <string name="library_storage_temp">Tep tam: %1$s</string>
-    <string name="library_storage_models">Model: %1$s</string>
-    <string name="library_storage_free">Con trong: %1$s</string>
-    <string name="library_trash_deleted_on">Da xoa vao %1$s</string>
-    <string name="library_trash_restore">Khoi phuc</string>
-    <string name="library_trash_delete_forever">Xoa vinh vien</string>
-    <string name="library_recovery_section_title">Can xu ly phuc hoi</string>
-    <string name="library_recovery_section_message">Nhung ban ghi nay da duoc giu lai sau khi luu bi gian doan hoac khong hop le. Ban co the giu lai de chan doan hoac xoa chu dong.</string>
-    <string name="library_recovery_open">Mo</string>
-    <string name="library_recovery_keep">Giu lai</string>
-    <string name="library_recovery_delete">Xoa</string>
-    <string name="library_recovery_delete_confirm_title">Xoa tep phuc hoi?</string>
-    <string name="library_recovery_delete_confirm_message">Xoa vinh vien \"%1$s\" cung tep da giu lai tren may?</string>
-    <string name="library_recovery_issue_missing_title">Mat tep</string>
-    <string name="library_recovery_issue_missing_message">Dong du lieu van con, nhung tep ghi am goc khong con tren bo nho.</string>
-    <string name="library_recovery_issue_zero_byte_title">Tep rong</string>
-    <string name="library_recovery_issue_zero_byte_message">Tep ghi am da duoc tao ra nhung khong chua du lieu am thanh co the phat.</string>
-    <string name="library_recovery_issue_corrupt_title">Tep hong hoac khong phat duoc</string>
-    <string name="library_recovery_issue_corrupt_message">Tep da giu lai khong the duoc xac thuc la am thanh co the phat.</string>
-    <string name="library_recovery_issue_orphan_title">Tep mo coi</string>
-    <string name="library_recovery_issue_orphan_message">Da tim thay tep ghi am khong co dong Room tuong ung, vi vay tep duoc giu lai de kiem tra.</string>
-    <string name="library_recovery_issue_generic_title">Loi phuc hoi</string>
-    <string name="library_recovery_issue_generic_message">Ban ghi nay can duoc kiem tra thu cong truoc khi co the tin cay.</string>
-
-    <!-- Settings Screen -->
-    <string name="settings_title">Cài đặt</string>
-    <string name="settings_section_appearance">Giao diện</string>
-    <string name="settings_theme_title">Chủ đề giao diện</string>
-    <string name="settings_theme_system">Mặc định hệ thống</string>
-    <string name="settings_theme_light">Sáng</string>
-    <string name="settings_theme_dark">Tối</string>
-
-    <string name="settings_section_language">Ngôn ngữ</string>
-    <string name="settings_language_title">Ngôn ngữ ứng dụng</string>
-    <string name="settings_language_english">English</string>
-    <string name="settings_language_vietnamese">Tiếng Việt</string>
-
-    <string name="settings_section_recording">Chất lượng ghi âm</string>
-    <string name="settings_quality_title">Cấu hình chất lượng âm thanh</string>
-    <string name="settings_quality_standard">Tiêu chuẩn (Cân bằng)</string>
-    <string name="settings_quality_high">Chất lượng cao</string>
-    <string name="settings_quality_saver">Tiết kiệm bộ nhớ</string>
-
-    <string name="settings_section_privacy">Bảo mật &amp; Dữ liệu</string>
-    <string name="settings_privacy_guarantee">Quyền sở hữu cục bộ</string>
-    <string name="settings_privacy_guarantee_desc">File âm thanh không bao giờ rời khỏi thiết bị nếu chưa có sự đồng ý của bạn.</string>
-
-    <string name="settings_section_subscription">Gói dịch vụ &amp; Dùng thử</string>
-    <string name="settings_pro_status">Tài khoản Khách Miễn phí</string>
-    <string name="settings_upgrade_pro">Xem Gói Pro &amp; Dùng thử</string>
-
-    <string name="settings_section_about">Thông tin</string>
-    <string name="settings_version_title">Phiên bản</string>
-
-    <!-- Subscription & Paywall -->
-    <string name="paywall_title">Loomora Pro</string>
-    <string name="paywall_subtitle">Mở khóa tính năng lọc âm nâng cao, chuyển âm thanh thành văn bản và phân tích thông minh.</string>
+    <string name="cd_navigate_back">Quay lại</string>
+    <string name="cd_favorite_recording">Thêm vào yêu thích</string>
+    <string name="cd_unfavorite_recording">Bỏ khỏi yêu thích</string>
+    <string name="cd_play_recording">Mở bản ghi</string>
+    <string name="cd_delete_recording">Xóa bản ghi</string>
+    <string name="cd_play">Phát</string>
+    <string name="cd_pause">Tạm dừng</string>
+    <string name="cd_rewind_10_seconds">Tua lại 10 giây</string>
+    <string name="cd_forward_10_seconds">Tua tới 10 giây</string>
+    <string name="pro_badge">PRO</string>
     <plurals name="paywall_trial_info">
         <item quantity="one">lượt dùng thử miễn phí còn lại</item>
         <item quantity="other">lượt dùng thử miễn phí còn lại</item>
     </plurals>
-    <string name="paywall_free_note">Tính năng ghi âm, nghe lại và quản lý file cục bộ luôn miễn phí 100%% và dùng được ngoại tuyến mãi mãi.</string>
-
-    <!-- General Actions & States -->
-    <string name="action_cancel">Hủy</string>
-    <string name="action_save">Lưu</string>
-    <string name="action_retry">Thử lại</string>
-    <string name="marker_default_label">Mốc #%1$d</string>
-    <string name="offline_banner_text">Bạn đang ngoại tuyến. Ghi âm và phát lại cục bộ vẫn hoạt động bình thường.</string>
-    <!-- Recorder -->
-    <string name="recorder_default_title">Ban ghi moi</string>
-    <string name="recorder_permission_grant">Cap quyen micro</string>
-    <string name="recorder_status_ready">San sang</string>
-    <string name="recorder_status_preparing">Dang chuan bi...</string>
-    <string name="recorder_status_recording">Dang ghi</string>
-    <string name="recorder_status_paused">Da tam dung</string>
-    <string name="recorder_status_finalizing">Dang hoan tat...</string>
-    <string name="recorder_status_saving">Dang luu...</string>
-    <string name="recorder_status_saved">Da luu</string>
-    <string name="recorder_status_error">Loi</string>
-    <string name="recorder_action_record">Ghi am</string>
-    <string name="recorder_action_stop_save">Dung &amp; luu</string>
-    <string name="recorder_cd_add_marker">Them moc</string>
-    <string name="recorder_cd_pause">Tam dung ghi am</string>
-    <string name="recorder_cd_resume">Tiep tuc ghi am</string>
-    <string name="recorder_cd_stop">Dung ghi am</string>
-    <string name="recorder_stop_dialog_title">Dung va luu ban ghi?</string>
-    <string name="recorder_stop_dialog_message">Phien ghi am se duoc hoan tat va luu an toan vao thu vien cua ban.</string>
-    <string name="recorder_error_start_failed">Khong the bat dau ghi am. Hay kiem tra quyen micro va thu lai.</string>
-    <string name="recorder_error_pause_failed">Khong the tam dung ghi am. Ban ghi hien tai van duoc bao ve.</string>
-    <string name="recorder_error_resume_failed">Khong the tiep tuc ghi am. Ban ghi hien tai van duoc bao ve.</string>
-    <string name="recorder_error_finalize_failed">Khong the hoan tat file ghi am. Ban ghi goc se duoc bao ve khi co the.</string>
-    <string name="recorder_error_save_failed">Da ghi duoc am thanh nhung chua the luu vao thu vien. Hay o lai man hinh nay va thu lai.</string>
 </resources>

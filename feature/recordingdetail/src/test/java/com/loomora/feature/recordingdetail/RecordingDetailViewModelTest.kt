@@ -3,6 +3,8 @@ package com.loomora.feature.recordingdetail
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
+import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
 import com.loomora.core.audio.model.PlayerState
 import com.loomora.core.audio.player.AudioPlayerEngine
@@ -25,6 +27,7 @@ import com.loomora.core.database.entity.SpeakerAliasEntity
 import com.loomora.core.database.entity.SpeakerTurnEntity
 import com.loomora.core.database.entity.TranscriptRevisionEntity
 import com.loomora.core.database.entity.TranscriptSegmentEntity
+import com.loomora.core.datastore.LoomoraPreferencesDataSource
 import com.loomora.core.model.AiJobStatus
 import com.loomora.core.model.Recording
 import com.loomora.core.model.RecordingOperationResult
@@ -54,6 +57,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import java.util.UUID
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -318,6 +324,22 @@ class RecordingDetailViewModelTest {
         collectionJob.cancel()
     }
 
+    @Test
+    fun startOfflineAnalysis_withoutTranscriptionModel_showsMissingModelMessage() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        val collectionJob = backgroundScope.launch { viewModel.uiState.collect {} }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.startAiProcessing(hasUserConsented = true)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.isTranscriptionModelMissing)
+        viewModel.dismissMissingModelMessage()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(false, viewModel.uiState.value.isTranscriptionModelMissing)
+        collectionJob.cancel()
+    }
+
     private fun createViewModel(
         repository: FakeRecordingRepository = FakeRecordingRepository(),
         storageManager: FakeRecordingStorageManager = FakeRecordingStorageManager()
@@ -345,13 +367,32 @@ class RecordingDetailViewModelTest {
                     updatedAt: Long
                 ) = Unit
                 override suspend fun updateWorkRequestId(id: String, workRequestId: String, updatedAt: Long) = Unit
+                override suspend fun updateTimings(id: String, timingsJson: String, updatedAt: Long) = Unit
                 override suspend fun requestCancel(id: String, updatedAt: Long) = Unit
                 override suspend fun reconcileRunningToQueued(updatedAt: Long) = Unit
             },
             json = Json { ignoreUnknownKeys = true }
         )
+        val offlineModelRepository = OfflineModelRepository(
+            offlineModelDao = object : com.loomora.core.database.dao.OfflineModelDao {
+                override suspend fun upsertModel(model: com.loomora.core.database.entity.OfflineModelEntity) = Unit
+                override fun observeModels(): Flow<List<com.loomora.core.database.entity.OfflineModelEntity>> = MutableStateFlow(emptyList())
+                override suspend fun getAllModels(): List<com.loomora.core.database.entity.OfflineModelEntity> = emptyList()
+                override suspend fun getModelById(modelId: String): com.loomora.core.database.entity.OfflineModelEntity? = null
+                override suspend fun deleteModel(modelId: String) = Unit
+            },
+            importer = OfflineModelImporter(
+                context = ApplicationProvider.getApplicationContext(),
+                json = Json { ignoreUnknownKeys = true },
+                compatibilityChecker = ModelCompatibilityChecker(ApplicationProvider.getApplicationContext())
+            ),
+            compatibilityChecker = ModelCompatibilityChecker(ApplicationProvider.getApplicationContext()),
+            catalog = DefaultOfflineModelCatalog(),
+            json = Json { ignoreUnknownKeys = true }
+        )
         return RecordingDetailViewModel(
             savedStateHandle = SavedStateHandle(mapOf("recordingId" to "rec-1")),
+            context = ApplicationProvider.getApplicationContext(),
             recordingRepository = repository,
             markerDao = FakeMarkerDao(),
             recordingStorageManager = storageManager,
@@ -366,23 +407,7 @@ class RecordingDetailViewModelTest {
             ),
             audioPlayerEngine = AudioPlayerEngine(ApplicationProvider.getApplicationContext()),
             offlineAnalysisCoordinator = OfflineAnalysisCoordinator(
-                modelRepository = OfflineModelRepository(
-                    offlineModelDao = object : com.loomora.core.database.dao.OfflineModelDao {
-                        override suspend fun upsertModel(model: com.loomora.core.database.entity.OfflineModelEntity) = Unit
-                        override fun observeModels(): Flow<List<com.loomora.core.database.entity.OfflineModelEntity>> = MutableStateFlow(emptyList())
-                        override suspend fun getAllModels(): List<com.loomora.core.database.entity.OfflineModelEntity> = emptyList()
-                        override suspend fun getModelById(modelId: String): com.loomora.core.database.entity.OfflineModelEntity? = null
-                        override suspend fun deleteModel(modelId: String) = Unit
-                    },
-                    importer = OfflineModelImporter(
-                        context = ApplicationProvider.getApplicationContext(),
-                        json = Json { ignoreUnknownKeys = true },
-                        compatibilityChecker = ModelCompatibilityChecker(ApplicationProvider.getApplicationContext())
-                    ),
-                    compatibilityChecker = ModelCompatibilityChecker(ApplicationProvider.getApplicationContext()),
-                    catalog = DefaultOfflineModelCatalog(),
-                    json = Json { ignoreUnknownKeys = true }
-                ),
+                modelRepository = offlineModelRepository,
                 analysisJobRepository = analysisJobRepository,
                 transcriptRepository = TranscriptRepository(FakeTranscriptDao()),
                 diarizationRepository = DiarizationRepository(FakeDiarizationDao(), Json { ignoreUnknownKeys = true }),
@@ -400,7 +425,17 @@ class RecordingDetailViewModelTest {
             ),
             transcriptRepository = TranscriptRepository(FakeTranscriptDao()),
             diarizationRepository = DiarizationRepository(FakeDiarizationDao(), Json { ignoreUnknownKeys = true }),
-            insightRepository = InsightRepository(FakeInsightDao(), Json { ignoreUnknownKeys = true })
+            insightRepository = InsightRepository(FakeInsightDao(), Json { ignoreUnknownKeys = true }),
+            preferencesDataSource = LoomoraPreferencesDataSource(
+                PreferenceDataStoreFactory.create(
+                    scope = CoroutineScope(SupervisorJob() + dispatcher),
+                    produceFile = {
+                        ApplicationProvider.getApplicationContext<android.content.Context>()
+                            .preferencesDataStoreFile("recording-detail-${UUID.randomUUID()}.preferences_pb")
+                    }
+                )
+            ),
+            offlineModelRepository = offlineModelRepository
         )
     }
 }

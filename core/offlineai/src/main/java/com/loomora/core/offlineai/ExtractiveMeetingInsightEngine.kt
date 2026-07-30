@@ -26,8 +26,8 @@ class HeuristicMeetingInsightEngine @Inject constructor(
         if (segments.isEmpty()) {
             return@withContext MeetingInsightOutput(
                 insights = AiInsights(
-                    suggestedTitle = if (input.languageTag == "vi") "Ban ghi khong co noi dung" else "Empty meeting",
-                    summary = if (input.languageTag == "vi") "Khong co transcript de tao insight." else "No transcript text was available for local insights."
+                    suggestedTitle = if (input.languageTag?.startsWith("vi") == true) "Bản ghi không có nội dung" else "Empty recording",
+                    summary = if (input.languageTag?.startsWith("vi") == true) "Không có bản chép lời để tạo thông tin chính." else "No transcript text was available for local insights."
                 ),
                 modelId = OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_ID,
                 modelVersion = OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_VERSION,
@@ -44,6 +44,17 @@ class HeuristicMeetingInsightEngine @Inject constructor(
         }
 
         coroutineContext.ensureActive()
+        val totalWords = segments.sumOf { segment ->
+            segment.text.split(Regex("\\s+")).count(String::isNotBlank)
+        }
+        if (totalWords < MIN_WORDS_FOR_STRUCTURED_INSIGHTS) {
+            val insights = AiInsights(
+                suggestedTitle = if (input.languageTag?.startsWith("vi") == true) "Bản ghi ngắn" else "Short recording",
+                summary = segments.joinToString(" ") { cleanSentence(it.text) }.trim(),
+                evidenceSegmentIds = segments.map { it.id }.filter(String::isNotBlank)
+            )
+            return@withContext outputFor(input, insights, segments, startedAt)
+        }
         val ranked = segments.sortedWith(
             compareByDescending<TranscriptSegment> { score(it.text) }
                 .thenBy { it.startMs }
@@ -83,7 +94,7 @@ class HeuristicMeetingInsightEngine @Inject constructor(
             actionItems = actions,
             openQuestions = questions,
             suggestions = suggestions,
-            chapters = buildChapters(segments),
+            chapters = buildChapters(segments, input.languageTag),
             evidenceSegmentIds = evidenceIds.distinct()
         )
 
@@ -113,6 +124,34 @@ class HeuristicMeetingInsightEngine @Inject constructor(
 
     override fun close() = Unit
 
+    private fun outputFor(
+        input: MeetingInsightInput,
+        insights: AiInsights,
+        segments: List<TranscriptSegment>,
+        startedAt: Long
+    ) = MeetingInsightOutput(
+        insights = insights,
+        modelId = OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_ID,
+        modelVersion = OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_VERSION,
+        promptVersion = OfflineAiRuntimeVersions.INSIGHTS_PROMPT_VERSION,
+        schemaVersion = OfflineAiRuntimeVersions.INSIGHTS_SCHEMA_VERSION,
+        pipelineVersion = OfflineAiRuntimeVersions.INSIGHTS_PIPELINE_VERSION,
+        languageTag = input.languageTag,
+        chunkCheckpoints = listOf(
+            InsightChunkCheckpoint(
+                chunkIndex = 0,
+                startMs = segments.first().startMs,
+                endMs = segments.last().endMs,
+                segmentIds = segments.map { it.id },
+                outputJson = json.encodeToString(insights)
+            )
+        ),
+        modelSizeBytes = 0L,
+        loadTimeMs = 0L,
+        generationTimeMs = System.currentTimeMillis() - startedAt,
+        memoryObservationKb = currentUsedMemoryKb()
+    )
+
     private fun List<TranscriptSegment>.extractMatches(regex: Regex): List<String> {
         return filter { regex.containsMatchIn(it.text) }
             .take(3)
@@ -132,17 +171,18 @@ class HeuristicMeetingInsightEngine @Inject constructor(
             .filter { it.length > 2 && it.lowercase() !in stopWords }
             .take(6)
         return words.joinToString(" ").ifBlank {
-            if (languageTag == "vi") "Tom tat cuoc hop" else "Meeting insights"
+            if (languageTag?.startsWith("vi") == true) "Tóm tắt cuộc họp" else "Meeting insights"
         }
     }
 
-    private fun buildChapters(segments: List<TranscriptSegment>): List<Chapter> {
+    private fun buildChapters(segments: List<TranscriptSegment>, languageTag: String?): List<Chapter> {
+        val isVietnamese = languageTag?.startsWith("vi") == true
         val first = segments.first()
         val last = segments.last()
         if (segments.size <= 3) {
             return listOf(
                 Chapter(
-                    title = cleanSentence(first.text).take(48).ifBlank { "Transcript" },
+                    title = cleanSentence(first.text).take(48).ifBlank { if (isVietnamese) "Bản chép lời" else "Transcript" },
                     startMs = first.startMs,
                     endMs = last.endMs,
                     evidenceSegmentIds = segments.map { it.id }.take(3)
@@ -151,8 +191,8 @@ class HeuristicMeetingInsightEngine @Inject constructor(
         }
         val midpoint = segments.size / 2
         return listOf(
-            chapterFrom("Opening", segments.take(midpoint)),
-            chapterFrom("Follow up", segments.drop(midpoint))
+            chapterFrom(if (isVietnamese) "Mở đầu" else "Opening", segments.take(midpoint)),
+            chapterFrom(if (isVietnamese) "Phần tiếp theo" else "Follow up", segments.drop(midpoint))
         )
     }
 
@@ -193,6 +233,7 @@ class HeuristicMeetingInsightEngine @Inject constructor(
     }
 
     private companion object {
+        const val MIN_WORDS_FOR_STRUCTURED_INSIGHTS = 12
         val decisionRegex = Regex("\\b(decide|decides|decided|decision|ch\\u1ed1t|chot|quy\\u1ebft \\u0111\\u1ecbnh|quyet dinh|th\\u1ed1ng nh\\u1ea5t|thong nhat)\\b", RegexOption.IGNORE_CASE)
         val questionRegex = Regex("\\b(question|asks?|whether|open question|c\\u00e2u h\\u1ecfi|cau hoi|h\\u1ecfi|hoi|li\\u1ec7u|lieu)\\b", RegexOption.IGNORE_CASE)
         val suggestionRegex = Regex("\\b(should|suggest|recommend|c\\u1ea7n|can|n\\u00ean|nen|\\u0111\\u1ec1 xu\\u1ea5t|de xuat|g\\u1ee3i \\u00fd|goi y)\\b", RegexOption.IGNORE_CASE)

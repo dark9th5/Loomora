@@ -13,14 +13,18 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.loomora.core.audio.R
 import com.loomora.core.audio.engine.AudioRecordEngine
+import com.loomora.core.audio.enhance.RnnoiseAudioEnhancer
 import com.loomora.core.audio.model.RecorderState
 import com.loomora.core.database.dao.RecordingDao
 import com.loomora.core.database.entity.RecordingEntity
+import com.loomora.core.datastore.LoomoraPreferencesDataSource
+import com.loomora.core.datastore.NoiseReductionLevel
 import com.loomora.core.model.RecordingStatus
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -38,12 +42,19 @@ class AudioRecorderService : Service() {
     @Inject
     lateinit var recordingDao: RecordingDao
 
+    @Inject
+    lateinit var preferencesDataSource: LoomoraPreferencesDataSource
+
+    @Inject
+    lateinit var audioEnhancer: RnnoiseAudioEnhancer
+
     private val binder = LocalBinder()
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
     private var activeRecordingId: String? = null
     private var activeTitle: String? = null
+    private var activeNoiseReductionLevel: NoiseReductionLevel = NoiseReductionLevel.LIGHT
 
     inner class LocalBinder : Binder() {
         fun getService(): AudioRecorderService = this@AudioRecorderService
@@ -99,7 +110,15 @@ class AudioRecorderService : Service() {
 
         serviceScope.launch(Dispatchers.IO) {
             recordingDao.insertRecording(recording)
-                val started = audioRecordEngine.startRecording(this@AudioRecorderService, recordingId, outputFile)
+                val preferences = preferencesDataSource.userPreferences.first()
+                val audioSource = preferences.recordingAudioSource
+                activeNoiseReductionLevel = preferences.noiseReductionLevel
+                val started = audioRecordEngine.startRecording(
+                    this@AudioRecorderService,
+                    recordingId,
+                    outputFile,
+                    audioSource
+                )
                 if (started) {
                     launch(Dispatchers.Main) {
 	                    startForeground(NOTIFICATION_ID, createNotification(R.string.audio_notification_status_recording, 0L, isPaused = false, recordingId = recordingId))
@@ -114,6 +133,7 @@ class AudioRecorderService : Service() {
                 )
                 activeRecordingId = null
                 activeTitle = null
+                activeNoiseReductionLevel = NoiseReductionLevel.LIGHT
             }
         }
     }
@@ -203,6 +223,11 @@ class AudioRecorderService : Service() {
             try {
                 val existing = recordingDao.getRecordingByIdSync(recordingId)
                 val now = System.currentTimeMillis()
+                val filteredFile = audioEnhancer.enhance(
+                    source = file,
+                    destination = File(File(filesDir, "recordings/filtered"), "$recordingId-denoised.wav"),
+                    level = activeNoiseReductionLevel
+                )
                 recordingDao.insertRecording(
                     (existing ?: RecordingEntity(
                         id = recordingId,
@@ -223,11 +248,13 @@ class AudioRecorderService : Service() {
                         durationMs = durationMs,
                         status = RecordingStatus.SAVED.name,
                         originalFileUri = fileUri,
+                        editedOutputUri = filteredFile?.let { "file://${it.absolutePath}" },
                         sizeBytes = if (file.exists()) file.length() else 0L
                     )
                 )
                 activeRecordingId = null
                 activeTitle = null
+                activeNoiseReductionLevel = NoiseReductionLevel.LIGHT
                 launch(Dispatchers.Main) {
                     audioRecordEngine.markSaved(recordingId, file.absolutePath, durationMs)
                     stopForeground(STOP_FOREGROUND_REMOVE)

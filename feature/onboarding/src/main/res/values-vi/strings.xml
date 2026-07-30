@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_brand">Loomora</string>
+    <string name="onboarding_language_title">Chọn ngôn ngữ</string>
+    <string name="onboarding_language_description">Bạn có thể thay đổi lại trong phần Cài đặt.</string>
+    <string name="onboarding_language_english">Tiếng Anh</string>
+    <string name="onboarding_language_vietnamese">Tiếng Việt</string>
+    <string name="onboarding_welcome_title">Chào mừng đến với Loomora</string>
+    <string name="onboarding_welcome_description">Ghi lại cuộc họp, bài giảng, phỏng vấn và ghi chú giọng nói. Âm thanh mặc định được lưu cục bộ; bạn không cần tài khoản hay Internet để ghi âm.</string>
+    <string name="onboarding_record_title">Cách ghi âm</string>
+    <string name="onboarding_record_description">1. Nhấn nút Ghi âm lớn.\n2. Tạm dừng hoặc tiếp tục khi cần.\n3. Thêm mốc tại những thời điểm quan trọng.\n4. Nhấn Dừng &amp; lưu.\n5. Tìm bản ghi trong Thư viện.</string>
+    <string name="onboarding_ai_title">Quy trình AI ngoại tuyến</string>
+    <string name="onboarding_model_install">Tải bộ model ngoại tuyến chất lượng cao</string>
+    <string name="onboarding_model_downloading">Đang tải… %1$d%%</string>
+    <string name="onboarding_model_ready">Bộ model ngoại tuyến chất lượng cao đã sẵn sàng</string>
+    <string name="onboarding_model_download_failed">Không thể tải model. Hãy kiểm tra kết nối hoặc cài sau trong Cài đặt.</string>
+    <string name="onboarding_model_optional">Khoảng 65 MB cho chép lời, phát hiện giọng nói và phân biệt người nói. Bạn có thể cài sau.</string>
+    <string name="onboarding_ai_description">Sau khi lưu, hãy chọn chỉ phiên âm, phiên âm cùng Phân tích thông minh, hoặc phân tích đầy đủ có Nhận diện người nói. Bản phiên âm có thể xuất hiện trước các kết quả sau. Bản ghi dài cần nhiều thời gian hơn và mô hình AI cần dung lượng riêng. Tính năng ghi âm vẫn hoạt động khi chưa có mô hình.</string>
+    <string name="onboarding_privacy_title">Quyền riêng tư và micro</string>
+    <string name="onboarding_privacy_description">Tệp được lưu trên thiết bị. Micro chỉ được dùng sau khi bạn bắt đầu ghi âm. Bạn có thể cấp quyền ngay hoặc khi mở Trình ghi âm. Các tính năng ghi âm cốt lõi không yêu cầu tài khoản.</string>
+    <string name="onboarding_allow_microphone">Cho phép dùng micro</string>
+    <string name="onboarding_not_now">Để sau</string>
+    <string name="onboarding_microphone_granted">Đã cấp quyền dùng micro</string>
+    <string name="onboarding_microphone_denied">Chưa cấp quyền dùng micro. Bạn có thể cấp lại khi bắt đầu ghi âm hoặc trong phần cài đặt hệ thống.</string>
+    <string name="onboarding_back">Quay lại</string>
+    <string name="onboarding_next">Tiếp theo</string>
+    <string name="onboarding_start">Bắt đầu dùng Loomora</string>
+    <string name="onboarding_done">Xong</string>
+</resources>

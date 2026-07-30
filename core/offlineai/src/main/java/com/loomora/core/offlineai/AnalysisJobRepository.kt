@@ -3,7 +3,9 @@ package com.loomora.core.offlineai
 import com.loomora.core.database.dao.AnalysisJobDao
 import com.loomora.core.database.entity.AnalysisJobEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.UUID
@@ -19,6 +21,8 @@ class AnalysisJobRepository @Inject constructor(
         return analysisJobDao.observeJobsForRecording(recordingId)
     }
 
+    suspend fun pendingJobs(): List<AnalysisJobEntity> = analysisJobDao.observePendingJobs().first()
+
     suspend fun enqueueIfAbsent(
         recordingId: String,
         sourceFingerprint: String,
@@ -29,7 +33,29 @@ class AnalysisJobRepository @Inject constructor(
         val requestedOptionsJson = json.encodeToString(canonicalOptions)
         val logicalKey = logicalKey(recordingId, sourceFingerprint, requestedOptionsJson)
 
-        analysisJobDao.getJobByLogicalKey(logicalKey)?.let { return it }
+        analysisJobDao.getJobByLogicalKey(logicalKey)?.let { existing ->
+            if (existing.status !in rerunnableStatuses) return existing
+            val now = System.currentTimeMillis()
+            val restarted = existing.copy(
+                status = AnalysisJobStatus.QUEUED.name,
+                stage = OfflineAnalysisStage.QUEUED.name,
+                progress = 0f,
+                attempt = existing.attempt + 1,
+                workRequestId = null,
+                checkpointRef = null,
+                stageOutputRef = null,
+                modelVersionsJson = "{}",
+                errorCode = null,
+                skipReason = null,
+                fallbackReason = null,
+                startedAt = null,
+                finishedAt = null,
+                updatedAt = now,
+                timingsJson = "{}"
+            )
+            analysisJobDao.upsertJob(restarted)
+            return restarted
+        }
 
         val now = System.currentTimeMillis()
         val job = AnalysisJobEntity(
@@ -92,8 +118,20 @@ class AnalysisJobRepository @Inject constructor(
 
     suspend fun getJob(jobId: String): AnalysisJobEntity? = analysisJobDao.getJobById(jobId)
 
+    fun optionsFor(job: AnalysisJobEntity): OfflineProcessingOptions = runCatching {
+        json.decodeFromString<OfflineProcessingOptions>(job.requestedOptionsJson).canonical()
+    }.getOrDefault(OfflineProcessingOptions())
+
     suspend fun updateWorkRequestId(jobId: String, workRequestId: String) {
         analysisJobDao.updateWorkRequestId(jobId, workRequestId, System.currentTimeMillis())
+    }
+
+    suspend fun updateTimings(jobId: String, timings: OfflineAiStageTimings) {
+        analysisJobDao.updateTimings(
+            id = jobId,
+            timingsJson = json.encodeToString(timings),
+            updatedAt = System.currentTimeMillis()
+        )
     }
 
     suspend fun requestCancel(jobId: String) {
@@ -143,6 +181,13 @@ class AnalysisJobRepository @Inject constructor(
     }
 
     private companion object {
+        val rerunnableStatuses = setOf(
+            AnalysisJobStatus.CANCELLED.name,
+            AnalysisJobStatus.COMPLETED.name,
+            AnalysisJobStatus.RETRYABLE_FAILURE.name,
+            AnalysisJobStatus.TERMINAL_FAILURE.name,
+            AnalysisJobStatus.INVALIDATED.name
+        )
         val terminalStatuses = setOf(
             AnalysisJobStatus.CANCELLED,
             AnalysisJobStatus.COMPLETED,

@@ -6,12 +6,14 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.loomora.core.database.LoomoraDatabase
 import com.loomora.core.database.entity.AnalysisJobEntity
+import com.loomora.core.database.entity.OfflineModelEntity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -198,6 +200,42 @@ class OfflineModelRepositoryTest {
     }
 
     @Test
+    fun staleReadyCatalogRecord_isReportedNotInstalled() = runTest {
+        val manifest = DefaultOfflineModelCatalog().manifests.first {
+            it.capability == ModelCapability.TRANSCRIPTION
+        }
+        val staleFile = temporaryFolder.newFile(manifest.fileName).apply { writeText("stale") }
+        database.offlineModelDao().upsertModel(
+            OfflineModelEntity(
+                modelId = manifest.id,
+                version = "old-version",
+                capability = manifest.capability.name,
+                runtime = manifest.runtime.name,
+                fileName = manifest.fileName,
+                sizeBytes = staleFile.length(),
+                sha256 = "old-checksum",
+                minimumRamMb = null,
+                supportedAbisJson = "[]",
+                supportedLanguagesJson = "[]",
+                licenseName = manifest.licenseName,
+                licenseUrl = manifest.licenseUrl,
+                sourceUrl = manifest.sourceUrl,
+                pipelineCompatibility = manifest.pipelineCompatibility,
+                state = ModelInstallState.READY.name,
+                installedPath = staleFile.absolutePath,
+                installedAt = 1L,
+                lastVerifiedAt = 1L,
+                errorCode = null
+            )
+        )
+
+        val record = repository.models.first().first { it.manifest.id == manifest.id }
+
+        assertEquals(ModelInstallState.NOT_INSTALLED, record.state)
+        assertFalse(repository.hasReadyModels(setOf(ModelCapability.TRANSCRIPTION)))
+    }
+
+    @Test
     fun incompatibleAbi_persistsIncompatibleState() = runTest {
         val incompatibleRepository = OfflineModelRepository(
             offlineModelDao = database.offlineModelDao(),
@@ -235,11 +273,74 @@ class OfflineModelRepositoryTest {
         )
         repository.importModel(Uri.fromFile(modelPack))
 
+        assertTrue(repository.hasReadyModels(setOf(ModelCapability.TRANSCRIPTION)))
+
         val entity = database.offlineModelDao().getModelById("missing-after-ready")!!
         File(requireNotNull(entity.installedPath)).delete()
 
         val model = repository.models.first().first { it.manifest.id == "missing-after-ready" }
         assertEquals(ModelInstallState.CORRUPT, model.state)
+        assertFalse(repository.hasReadyModels(setOf(ModelCapability.TRANSCRIPTION)))
+    }
+
+    @Test
+    fun missingAdditionalCatalogFile_surfacesCorruptState() = runTest {
+        val manifest = DefaultOfflineModelCatalog().manifests.first {
+            it.id == DefaultOfflineModelCatalog.RECOMMENDED_TRANSCRIPTION_MODEL_ID
+        }
+        val modelDir = temporaryFolder.newFolder("incomplete-catalog-model")
+        val primary = File(modelDir, manifest.fileName).apply { writeText("encoder") }
+        manifest.additionalFiles.forEach { file ->
+            if (!file.fileName.contains("decoder")) File(modelDir, file.fileName).writeText("asset")
+        }
+        insertCatalogEntity(manifest, primary)
+
+        val model = repository.getReadyModel(manifest.id)
+        val displayed = repository.models.first().first { it.manifest.id == manifest.id }
+
+        assertEquals(null, model)
+        assertEquals(ModelInstallState.CORRUPT, displayed.state)
+        assertFalse(repository.hasReadyModels(setOf(ModelCapability.TRANSCRIPTION)))
+    }
+
+    @Test
+    fun getReadyModelById_honorsExplicitSelection() = runTest {
+        val catalog = DefaultOfflineModelCatalog()
+        val recommended = catalog.manifests.first { it.id == DefaultOfflineModelCatalog.RECOMMENDED_TRANSCRIPTION_MODEL_ID }
+        val base = catalog.manifests.first { it.id == DefaultOfflineModelCatalog.ACCURATE_TRANSCRIPTION_MODEL_ID }
+        listOf(recommended, base).forEach { manifest ->
+            val modelDir = temporaryFolder.newFolder(manifest.id)
+            val primary = File(modelDir, manifest.fileName).apply { writeText("primary") }
+            manifest.additionalFiles.forEach { File(modelDir, it.fileName).writeText("asset") }
+            insertCatalogEntity(manifest, primary)
+        }
+
+        assertEquals(recommended.id, repository.getReadyModel(recommended.id)?.manifest?.id)
+        assertEquals(base.id, repository.getReadyModel(base.id)?.manifest?.id)
+    }
+
+    @Test
+    fun recommendedBundle_usesVietnameseZipformerSileroAndDiarization() {
+        val catalog = DefaultOfflineModelCatalog()
+        val transcription = catalog.manifests.first {
+            it.id == DefaultOfflineModelCatalog.RECOMMENDED_TRANSCRIPTION_MODEL_ID
+        }
+        val vad = catalog.manifests.first {
+            it.id == DefaultOfflineModelCatalog.RECOMMENDED_VAD_MODEL_ID
+        }
+        val diarization = catalog.manifests.first {
+            it.id == DefaultOfflineModelCatalog.RECOMMENDED_DIARIZATION_MODEL_ID
+        }
+
+        assertTrue(transcription.id.contains("zipformer-vi"))
+        assertEquals(setOf("vi"), transcription.supportedLanguages)
+        assertTrue(transcription.fileName.contains("encoder"))
+        assertTrue(transcription.additionalFiles.any { it.fileName.contains("decoder") })
+        assertTrue(transcription.additionalFiles.any { it.fileName.contains("joiner") })
+        assertTrue(transcription.additionalFiles.any { it.fileName.contains("tokens") })
+        assertEquals(ModelCapability.VOICE_ACTIVITY_DETECTION, vad.capability)
+        assertTrue(vad.fileName.contains("silero"))
+        assertEquals(ModelCapability.DIARIZATION, diarization.capability)
     }
 
     @Test
@@ -309,6 +410,32 @@ class OfflineModelRepositoryTest {
             }
         }
         return file
+    }
+
+    private suspend fun insertCatalogEntity(manifest: OfflineModelManifest, primary: File) {
+        database.offlineModelDao().upsertModel(
+            OfflineModelEntity(
+                modelId = manifest.id,
+                version = manifest.version,
+                capability = manifest.capability.name,
+                runtime = manifest.runtime.name,
+                fileName = manifest.fileName,
+                sizeBytes = manifest.sizeBytes,
+                sha256 = manifest.sha256,
+                minimumRamMb = manifest.minimumRamMb,
+                supportedAbisJson = "[\"arm64-v8a\",\"x86_64\"]",
+                supportedLanguagesJson = "[\"vi\",\"en\"]",
+                licenseName = manifest.licenseName,
+                licenseUrl = manifest.licenseUrl,
+                sourceUrl = manifest.sourceUrl,
+                pipelineCompatibility = manifest.pipelineCompatibility,
+                state = ModelInstallState.READY.name,
+                installedPath = primary.absolutePath,
+                installedAt = 1L,
+                lastVerifiedAt = 1L,
+                errorCode = null
+            )
+        )
     }
 
     private fun manifest(

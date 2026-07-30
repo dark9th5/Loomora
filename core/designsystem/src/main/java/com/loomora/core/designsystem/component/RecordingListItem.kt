@@ -26,6 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.loomora.core.designsystem.R
 
 @Composable
 fun RecordingListItem(
@@ -36,6 +38,7 @@ fun RecordingListItem(
     onItemClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
     onDelete: (() -> Unit)? = null,
+    statusText: String? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -56,7 +59,7 @@ fun RecordingListItem(
         ) {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Play recording",
+                contentDescription = stringResource(R.string.cd_play_recording),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(32.dp)
             )
@@ -75,6 +78,14 @@ fun RecordingListItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (!statusText.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -85,7 +96,7 @@ fun RecordingListItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Delete recording",
+                            contentDescription = stringResource(R.string.cd_delete_recording),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -97,7 +108,9 @@ fun RecordingListItem(
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
-                        contentDescription = if (isFavorite) "Favorite" else "Not favorite",
+                        contentDescription = stringResource(
+                            if (isFavorite) R.string.cd_unfavorite_recording else R.string.cd_favorite_recording
+                        ),
                         tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

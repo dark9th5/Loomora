@@ -15,6 +15,7 @@ import com.loomora.feature.editor.EditorRoute
 import com.loomora.feature.home.HomeRoute
 import com.loomora.feature.library.LibraryRoute
 import com.loomora.feature.onboarding.OnboardingRoute
+import com.loomora.feature.onboarding.OnboardingMode
 import com.loomora.feature.recorder.RecorderRoute
 import com.loomora.feature.recordingdetail.RecordingDetailRoute
 import com.loomora.feature.settings.SettingsRoute
@@ -70,11 +71,20 @@ fun LoomoraNavHost(
                     }
                 )
             }
+            composable(Screen.Tutorial.route) {
+                OnboardingRoute(
+                    mode = OnboardingMode.TUTORIAL,
+                    onCompleteOnboarding = { navController.popBackStack() }
+                )
+            }
             composable(Screen.Home.route) {
                 HomeRoute(
-                    onNavigateToRecorder = { navController.navigate(Screen.Recorder.route) },
+                    onNavigateToRecorder = { mode -> navController.navigate(Screen.Recorder.createRoute(mode?.name)) },
                     onNavigateToLibrary = { navController.navigate(Screen.Library.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToDetail = { recordingId ->
+                        navController.navigate(Screen.RecordingDetail.createRoute(recordingId))
+                    }
                 )
             }
             composable(Screen.Library.route) {
@@ -105,6 +115,7 @@ fun LoomoraNavHost(
             composable(Screen.Settings.route) {
                 SettingsRoute(
                     onNavigateToSubscription = { navController.navigate(Screen.Subscription.route) },
+                    onNavigateToTutorial = { navController.navigate(Screen.Tutorial.route) },
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -113,8 +124,16 @@ fun LoomoraNavHost(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.Recorder.route) {
+            composable(
+                route = Screen.Recorder.route,
+                arguments = listOf(navArgument("mode") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                })
+            ) { backStackEntry ->
                 RecorderRoute(
+                    initialMode = backStackEntry.arguments?.getString("mode"),
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

@@ -34,8 +34,20 @@ class OfflineModelRepository @Inject constructor(
                     compatibility = compatibilityChecker.evaluate(manifest),
                     errorCode = null
                 )
+            } else if (entity.matches(manifest)) {
+                entity.toRecord(json, compatibilityChecker.evaluate(manifest))
+                    .copy(manifest = manifest)
+                    .withValidatedState()
             } else {
-                entity.toRecord(json, compatibilityChecker.evaluate(manifest)).withValidatedState()
+                OfflineModelRecord(
+                    manifest = manifest,
+                    state = ModelInstallState.NOT_INSTALLED,
+                    installedPath = null,
+                    installedAt = null,
+                    lastVerifiedAt = null,
+                    compatibility = compatibilityChecker.evaluate(manifest),
+                    errorCode = null
+                )
             }
         }
         val extraRecords = entities
@@ -104,35 +116,56 @@ class OfflineModelRepository @Inject constructor(
     }
 
     suspend fun hasReadyModels(requiredCapabilities: Set<ModelCapability>): Boolean {
-        val installed = offlineModelDao.getAllModels()
+        val installed = offlineModelDao.getAllModels().mapNotNull { entity ->
+            val manifest = catalog.manifests.firstOrNull { it.id == entity.modelId }
+                ?: entity.toRecordManifest(json)
+            entity.toRecord(json, compatibilityChecker.evaluate(manifest))
+                .copy(manifest = manifest)
+                .withValidatedState()
+                .takeIf {
+                    entity.state == ModelInstallState.READY.name &&
+                        (catalog.manifests.none { it.id == entity.modelId } || entity.matches(manifest))
+                }
+        }
         return requiredCapabilities.all { capability ->
-            installed.any { it.capability == capability.name && it.state == ModelInstallState.READY.name }
+            installed.any { record ->
+                record.manifest.capability == capability &&
+                    record.state == ModelInstallState.READY
+            }
         }
     }
 
     suspend fun getReadyModel(capability: ModelCapability): OfflineModelRecord? {
+        val catalogOrder = catalog.manifests.mapIndexed { index, manifest -> manifest.id to index }.toMap()
         return offlineModelDao.getAllModels()
-            .firstOrNull { it.capability == capability.name && it.state == ModelInstallState.READY.name }
+            .filter {
+                val manifest = catalog.manifests.firstOrNull { manifest -> manifest.id == it.modelId }
+                it.capability == capability.name &&
+                    it.state == ModelInstallState.READY.name &&
+                    (manifest == null || it.matches(manifest))
+            }
+            .sortedBy { catalogOrder[it.modelId] ?: Int.MAX_VALUE }
+            .firstOrNull()
             ?.let { entity ->
-                val manifest = OfflineModelManifest(
-                    id = entity.modelId,
-                    version = entity.version,
-                    capability = ModelCapability.valueOf(entity.capability),
-                    runtime = RuntimeKind.valueOf(entity.runtime),
-                    fileName = entity.fileName,
-                    sizeBytes = entity.sizeBytes,
-                    sha256 = entity.sha256,
-                    minimumRamMb = entity.minimumRamMb,
-                    supportedAbis = json.decodeFromString(SetSerializer(String.serializer()), entity.supportedAbisJson),
-                    supportedLanguages = json.decodeFromString(SetSerializer(String.serializer()), entity.supportedLanguagesJson),
-                    licenseName = entity.licenseName,
-                    licenseUrl = entity.licenseUrl,
-                    sourceUrl = entity.sourceUrl,
-                    pipelineCompatibility = entity.pipelineCompatibility
-                )
-                entity.toRecord(json, compatibilityChecker.evaluate(manifest)).withValidatedState()
+                val manifest = catalog.manifests.firstOrNull { it.id == entity.modelId }
+                    ?: entity.toRecordManifest(json)
+                entity.toRecord(json, compatibilityChecker.evaluate(manifest))
+                    .copy(manifest = manifest)
+                    .withValidatedState()
                     .takeIf { it.state == ModelInstallState.READY }
             }
+    }
+
+    suspend fun getReadyModel(modelId: String): OfflineModelRecord? {
+        val entity = offlineModelDao.getModelById(modelId) ?: return null
+        if (entity.state != ModelInstallState.READY.name) return null
+        val catalogManifest = catalog.manifests.firstOrNull { it.id == modelId }
+        if (catalogManifest != null && !entity.matches(catalogManifest)) return null
+        val manifest = catalogManifest ?: entity.toRecordManifest(json)
+        return entity.toRecord(json, compatibilityChecker.evaluate(manifest))
+            .copy(manifest = manifest)
+            .withValidatedState()
+            .takeIf { it.state == ModelInstallState.READY }
     }
 
     suspend fun getModelDetails(modelId: String): OfflineModelRecord? {
@@ -148,10 +181,30 @@ class OfflineModelRepository @Inject constructor(
                 compatibility = compatibilityChecker.evaluate(manifest),
                 errorCode = null
             )
+        } else if (entity.matches(manifest)) {
+            entity.toRecord(json, compatibilityChecker.evaluate(manifest))
+                .copy(manifest = manifest)
+                .withValidatedState()
         } else {
-            entity.toRecord(json, compatibilityChecker.evaluate(manifest)).withValidatedState()
+            OfflineModelRecord(
+                manifest = manifest,
+                state = ModelInstallState.NOT_INSTALLED,
+                installedPath = null,
+                installedAt = null,
+                lastVerifiedAt = null,
+                compatibility = compatibilityChecker.evaluate(manifest),
+                errorCode = null
+            )
         }
     }
+
+    private fun OfflineModelEntity.matches(manifest: OfflineModelManifest): Boolean =
+        version == manifest.version &&
+            fileName == manifest.fileName &&
+            sizeBytes == manifest.sizeBytes &&
+            sha256.equals(manifest.sha256, ignoreCase = true) &&
+            capability == manifest.capability.name &&
+            runtime == manifest.runtime.name
 
     private fun OfflineModelEntity.toRecord(
         json: Json,
@@ -183,8 +236,29 @@ class OfflineModelRepository @Inject constructor(
         )
     }
 
+    private fun OfflineModelEntity.toRecordManifest(json: Json) = OfflineModelManifest(
+        id = modelId,
+        version = version,
+        capability = ModelCapability.valueOf(capability),
+        runtime = RuntimeKind.valueOf(runtime),
+        fileName = fileName,
+        sizeBytes = sizeBytes,
+        sha256 = sha256,
+        minimumRamMb = minimumRamMb,
+        supportedAbis = json.decodeFromString(SetSerializer(String.serializer()), supportedAbisJson),
+        supportedLanguages = json.decodeFromString(SetSerializer(String.serializer()), supportedLanguagesJson),
+        licenseName = licenseName,
+        licenseUrl = licenseUrl,
+        sourceUrl = sourceUrl,
+        pipelineCompatibility = pipelineCompatibility
+    )
+
     private fun OfflineModelRecord.withValidatedState(): OfflineModelRecord {
-        if (state == ModelInstallState.READY && installedPath != null && !File(installedPath).exists()) {
+        val primaryFile = installedPath?.let(::File)
+        val hasMissingFile = primaryFile == null ||
+            !primaryFile.isFile ||
+            manifest.additionalFiles.any { !File(primaryFile.parentFile, it.fileName).isFile }
+        if (state == ModelInstallState.READY && hasMissingFile) {
             return copy(
                 state = ModelInstallState.CORRUPT,
                 errorCode = OfflineAiException.ModelFileMissing::class.simpleName

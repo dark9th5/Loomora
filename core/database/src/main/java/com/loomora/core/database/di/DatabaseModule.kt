@@ -42,7 +42,8 @@ object DatabaseModule {
                 LoomoraMigrations.MIGRATION_3_4,
                 LoomoraMigrations.MIGRATION_4_5,
                 LoomoraMigrations.MIGRATION_5_6,
-                LoomoraMigrations.MIGRATION_6_7
+                LoomoraMigrations.MIGRATION_6_7,
+                LoomoraMigrations.MIGRATION_7_8
             )
             .build()
     }

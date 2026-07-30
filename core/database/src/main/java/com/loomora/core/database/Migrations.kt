@@ -269,4 +269,12 @@ object LoomoraMigrations {
             database.execSQL("CREATE INDEX IF NOT EXISTS `index_trial_operations_status` ON `trial_operations` (`status`)")
         }
     }
+
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `analysis_jobs` ADD COLUMN `timingsJson` TEXT NOT NULL DEFAULT '{}'"
+            )
+        }
+    }
 }

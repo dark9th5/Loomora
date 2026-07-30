@@ -42,6 +42,7 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
+    ksp(libs.hilt.work.compiler)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
@@ -49,6 +50,7 @@ dependencies {
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.room.testing)
+    testImplementation(files("libs/sherpa-onnx-1.13.4.aar"))
 
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.core)

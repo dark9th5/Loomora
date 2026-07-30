@@ -1,0 +1,36 @@
+<resources>
+    <string name="library_title">Library</string>
+    <string name="library_search_hint">Search recordings</string>
+    <string name="library_empty_title">Library is empty</string>
+    <string name="library_empty_desc">Your saved recordings will appear here.</string>
+    <string name="library_filter_favorites">Favorites</string>
+    <string name="library_filter_trash">Trash</string>
+    <string name="library_storage_title">Local storage usage</string>
+    <string name="library_storage_low_space_warning">Low free storage may interrupt recording or export.</string>
+    <string name="library_storage_recordings">Recordings: %1$s</string>
+    <string name="library_storage_exports">Exports: %1$s</string>
+    <string name="library_storage_temp">Temporary files: %1$s</string>
+    <string name="library_storage_models">Models: %1$s</string>
+    <string name="library_storage_free">Free: %1$s</string>
+    <string name="library_trash_deleted_on">Deleted on %1$s</string>
+    <string name="library_trash_restore">Restore</string>
+    <string name="library_trash_delete_forever">Delete forever</string>
+    <string name="library_recovery_section_title">Recovery attention needed</string>
+    <string name="library_recovery_section_message">These recordings were preserved after an interrupted or invalid save.</string>
+    <string name="library_recovery_open">Open</string>
+    <string name="library_recovery_keep">Keep</string>
+    <string name="library_recovery_delete">Delete</string>
+    <string name="library_recovery_delete_confirm_title">Delete recovery file?</string>
+    <string name="library_recovery_delete_confirm_message">Delete \"%1$s\" and its preserved local file permanently?</string>
+    <string name="library_recovery_issue_missing_title">Missing file</string>
+    <string name="library_recovery_issue_missing_message">The recording exists in the library, but its original file is missing.</string>
+    <string name="library_recovery_issue_zero_byte_title">Empty file</string>
+    <string name="library_recovery_issue_zero_byte_message">The recording file contains no playable audio.</string>
+    <string name="library_recovery_issue_corrupt_title">Corrupt or unplayable</string>
+    <string name="library_recovery_issue_corrupt_message">The preserved file could not be validated as playable audio.</string>
+    <string name="library_recovery_issue_orphan_title">Orphan file</string>
+    <string name="library_recovery_issue_orphan_message">A recording file was found without a matching library entry.</string>
+    <string name="library_recovery_issue_generic_title">Recovery issue</string>
+    <string name="library_recovery_issue_generic_message">This recording needs manual review.</string>
+    <string name="action_cancel">Cancel</string>
+</resources>

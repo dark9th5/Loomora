@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.loomora.core.designsystem.R
 
@@ -62,7 +63,7 @@ fun ProBadge(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "PRO",
+            text = stringResource(R.string.pro_badge),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onPrimary
         )

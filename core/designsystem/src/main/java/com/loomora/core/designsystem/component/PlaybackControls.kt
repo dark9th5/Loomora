@@ -29,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.loomora.core.designsystem.R
 import java.util.Locale
 
 @Composable
@@ -88,7 +90,7 @@ fun PlaybackControls(
             ) {
                 Icon(
                     imageVector = Icons.Default.Replay10,
-                    contentDescription = "Rewind 10 seconds",
+                    contentDescription = stringResource(R.string.cd_rewind_10_seconds),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -103,7 +105,7 @@ fun PlaybackControls(
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    contentDescription = stringResource(if (isPlaying) R.string.cd_pause else R.string.cd_play),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(36.dp)
                 )
@@ -117,7 +119,7 @@ fun PlaybackControls(
             ) {
                 Icon(
                     imageVector = Icons.Default.Forward10,
-                    contentDescription = "Forward 10 seconds",
+                    contentDescription = stringResource(R.string.cd_forward_10_seconds),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }

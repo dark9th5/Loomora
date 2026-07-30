@@ -34,5 +34,6 @@ data class AnalysisJobEntity(
     val startedAt: Long?,
     val finishedAt: Long?,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val timingsJson: String = "{}"
 )

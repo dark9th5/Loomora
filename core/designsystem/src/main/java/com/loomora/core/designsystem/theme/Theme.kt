@@ -94,6 +94,7 @@ fun LoomoraTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
+            shapes = LoomoraShapes,
             content = content
         )
     }

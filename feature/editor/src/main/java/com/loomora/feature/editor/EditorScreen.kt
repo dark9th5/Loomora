@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.loomora.core.audio.waveform.WaveformLoadState
 import com.loomora.core.designsystem.component.AudioWaveform
@@ -102,14 +103,14 @@ fun EditorScreen(
     Scaffold(
         topBar = {
             LoomoraTopAppBar(
-                title = "Non-Destructive Audio Editor",
+                title = stringResource(R.string.editor_title),
                 onBackClick = onNavigateBack,
                 actions = {
                     IconButton(onClick = onUndo, enabled = uiState.canUndo) {
-                        Icon(imageVector = Icons.Default.Undo, contentDescription = "Undo")
+                        Icon(imageVector = Icons.Default.Undo, contentDescription = stringResource(R.string.editor_undo))
                     }
                     IconButton(onClick = onRedo, enabled = uiState.canRedo) {
-                        Icon(imageVector = Icons.Default.Redo, contentDescription = "Redo")
+                        Icon(imageVector = Icons.Default.Redo, contentDescription = stringResource(R.string.editor_redo))
                     }
                 }
             )
@@ -124,9 +125,7 @@ fun EditorScreen(
         ) {
             if (uiState.recording == null) {
                 ErrorState(
-                    title = "Recording Not Found",
-                    message = "Could not load recording for editing.",
-                    retryText = "Back",
+                    title = stringResource(R.string.editor_not_found), message = stringResource(R.string.editor_not_found_message), retryText = stringResource(R.string.editor_back),
                     onRetryClick = onNavigateBack,
                     modifier = Modifier.align(Alignment.Center)
                 )
@@ -146,7 +145,7 @@ fun EditorScreen(
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "Non-destructive editing preserves your original recording intact.",
+                            text = stringResource(R.string.editor_preserves_original),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -159,25 +158,25 @@ fun EditorScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = "Edit Preview",
+                                    text = stringResource(R.string.editor_preview),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "Estimated output duration: ${uiState.previewDurationMs} ms",
+                                    text = stringResource(R.string.editor_estimated_duration, uiState.previewDurationMs),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 if (uiState.previewSegments.isEmpty()) {
                                     Text(
-                                        text = "Preview uses the full original recording until you apply edits.",
+                                        text = stringResource(R.string.editor_preview_full),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 } else {
                                     uiState.previewSegments.forEachIndexed { index, segment ->
                                         Text(
-                                            text = "Segment ${index + 1}: ${segment.startMs} - ${segment.endMs} ms",
+                                            text = stringResource(R.string.editor_segment, index + 1, segment.startMs, segment.endMs),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -185,7 +184,7 @@ fun EditorScreen(
                                 }
                                 if (uiState.validationIssue != null) {
                                     Text(
-                                        text = "Current recipe needs adjustment before export.",
+                                        text = stringResource(R.string.editor_recipe_invalid),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.error
                                     )
@@ -202,7 +201,7 @@ fun EditorScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Timeline Waveform",
+                                    text = stringResource(R.string.editor_waveform),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -215,8 +214,7 @@ fun EditorScreen(
 
                                     is WaveformLoadState.Error -> {
                                         ErrorState(
-                                            title = "Waveform unavailable",
-                                            message = "Loomora could not load the saved waveform for this recording."
+                                            title = stringResource(R.string.editor_waveform_unavailable), message = stringResource(R.string.editor_waveform_message)
                                         )
                                     }
 
@@ -236,7 +234,7 @@ fun EditorScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Selection Range (ms)",
+                                    text = stringResource(R.string.editor_selection),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -256,7 +254,7 @@ fun EditorScreen(
                                             val end = endText.toLongOrNull() ?: recording.durationMs
                                             onUpdateSelection(start, end)
                                         },
-                                        label = { Text("Start Ms") },
+                                        label = { Text(stringResource(R.string.editor_start)) },
                                         modifier = Modifier.weight(1f)
                                     )
 
@@ -268,7 +266,7 @@ fun EditorScreen(
                                             val end = it.toLongOrNull() ?: recording.durationMs
                                             onUpdateSelection(start, end)
                                         },
-                                        label = { Text("End Ms") },
+                                        label = { Text(stringResource(R.string.editor_end)) },
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -288,7 +286,7 @@ fun EditorScreen(
                             ) {
                                 Icon(imageVector = Icons.Default.ContentCut, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Trim Selection")
+                                Text(text = stringResource(R.string.editor_trim))
                             }
 
                             OutlinedButton(
@@ -297,7 +295,7 @@ fun EditorScreen(
                             ) {
                                 Icon(imageVector = Icons.Default.Delete, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Delete Range")
+                                Text(text = stringResource(R.string.editor_delete_range))
                             }
                         }
                     }
@@ -317,12 +315,12 @@ fun EditorScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Speech Clarity Enhancement",
+                                        text = stringResource(R.string.editor_clarity),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Applies high-pass filter & loudness normalization",
+                                        text = stringResource(R.string.editor_clarity_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -353,7 +351,7 @@ fun EditorScreen(
                             } else {
                                 Icon(imageVector = Icons.Default.Save, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Export as New Recording")
+                                Text(text = stringResource(R.string.editor_export))
                             }
                         }
 
@@ -368,7 +366,7 @@ fun EditorScreen(
                                 onClick = onCancelExport,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(text = "Cancel Export")
+                                Text(text = stringResource(R.string.editor_cancel_export))
                             }
                         }
 
@@ -390,7 +388,7 @@ fun EditorScreen(
                             ) {
                                 Icon(imageVector = Icons.Default.Share, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Share Exported Recording")
+                                Text(text = stringResource(R.string.editor_share_export))
                             }
                         }
 

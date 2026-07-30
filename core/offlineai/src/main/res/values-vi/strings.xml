@@ -1,0 +1,5 @@
+<resources>
+    <string name="offline_ai_channel_name">Xử lý AI ngoại tuyến</string>
+    <string name="offline_ai_notification_title">Đang phân tích bản ghi</string>
+    <string name="offline_ai_notification_preparing">Đang chuẩn bị âm thanh trên thiết bị…</string>
+</resources>

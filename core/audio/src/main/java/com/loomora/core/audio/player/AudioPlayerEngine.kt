@@ -66,7 +66,7 @@ class AudioPlayerEngine @Inject constructor(
         }
     }
 
-    fun playAudio(recordingId: String, fileUriString: String) {
+    fun playAudio(recordingId: String, fileUriString: String, startPositionMs: Long = 0L) {
         val filePath = fileUriString.removePrefix("file://")
         val file = File(filePath)
 
@@ -81,6 +81,7 @@ class AudioPlayerEngine @Inject constructor(
         val mediaItem = MediaItem.fromUri(fileUriString)
         player.setMediaItem(mediaItem)
         player.prepare()
+        if (startPositionMs > 0L) player.seekTo(startPositionMs)
         player.playbackParameters = PlaybackParameters(currentSpeed)
         player.play()
 

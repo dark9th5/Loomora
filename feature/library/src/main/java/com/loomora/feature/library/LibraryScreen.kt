@@ -44,7 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.loomora.core.designsystem.R
 import com.loomora.core.designsystem.component.EmptyState
 import com.loomora.core.designsystem.component.LoomoraTopAppBar
 import com.loomora.core.designsystem.component.RecordingListItem

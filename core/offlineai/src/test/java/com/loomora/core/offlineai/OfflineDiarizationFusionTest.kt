@@ -67,6 +67,7 @@ class OfflineDiarizationFusionTest {
         assertEquals(listOf(0L, 1_000L), fused.map { it.startMs })
         assertEquals(listOf(1_000L, 2_000L), fused.map { it.endMs })
         assertEquals(listOf("Speaker 1", "Speaker 2"), fused.map { it.speakerLabel })
+        assertEquals("A long sentence crossing speakers", fused.joinToString(" ") { it.text })
     }
 
     @Test
@@ -80,8 +81,9 @@ class OfflineDiarizationFusionTest {
             )
         )
 
-        assertEquals(3, fused.size)
+        assertEquals(2, fused.size)
         assertEquals(fused.sortedBy { it.startMs }, fused)
+        assertEquals("short turns", fused.joinToString(" ") { it.text })
     }
 
     @Test
@@ -106,6 +108,38 @@ class OfflineDiarizationFusionTest {
         )
 
         assertNull(fused.single().speakerLabel)
+    }
+
+    @Test
+    fun invalidTranscriptTimestamp_projectsWordsOntoSpeakerTurnsWithoutDuplication() {
+        val fused = TranscriptSpeakerFusion.fuse(
+            transcript = listOf(TranscriptSegment(startMs = 100, endMs = 101, text = "mot hai ba bon")),
+            turns = listOf(
+                SpeakerTurn(startMs = 10_000, endMs = 11_000, speakerLabel = "Speaker 1", speakerIndex = 0),
+                SpeakerTurn(startMs = 12_000, endMs = 13_000, speakerLabel = "Speaker 2", speakerIndex = 1)
+            )
+        )
+
+        assertEquals(listOf("Speaker 1", "Speaker 2"), fused.map { it.speakerLabel })
+        assertEquals("mot hai ba bon", fused.joinToString(" ") { it.text })
+        assertEquals(listOf(10_000L, 12_000L), fused.map { it.startMs })
+    }
+
+    @Test
+    fun fallbackFullWindowTimestamp_skipsLongSilentGaps() {
+        val fused = TranscriptSpeakerFusion.fuse(
+            transcript = listOf(TranscriptSegment(startMs = 0, endMs = 60_000, text = "mot hai ba bon nam sau")),
+            turns = listOf(
+                SpeakerTurn(startMs = 20_000, endMs = 21_000, speakerLabel = "Speaker 1", speakerIndex = 0),
+                SpeakerTurn(startMs = 25_000, endMs = 26_000, speakerLabel = "Speaker 1", speakerIndex = 0),
+                SpeakerTurn(startMs = 30_000, endMs = 31_000, speakerLabel = "Speaker 1", speakerIndex = 0)
+            )
+        )
+
+        assertEquals(3, fused.size)
+        assertEquals(listOf(20_000L, 25_000L, 30_000L), fused.map { it.startMs })
+        assertTrue(fused.all { it.speakerLabel == "Speaker 1" })
+        assertEquals("mot hai ba bon nam sau", fused.joinToString(" ") { it.text })
     }
 
     @Test

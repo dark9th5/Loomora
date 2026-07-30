@@ -36,9 +36,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,63 +64,15 @@ import com.loomora.core.designsystem.component.AudioWaveform
 import com.loomora.core.designsystem.component.LoomoraTopAppBar
 import com.loomora.core.designsystem.component.PlaybackControls
 import com.loomora.core.model.AiJobStatus
+import com.loomora.core.model.AiProcessingStage
 import com.loomora.core.model.RecordingOperationResult
+import com.loomora.core.datastore.DefaultAnalysisMode
 import java.io.File
-import java.text.SimpleDateFormat
+import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
-@Composable
-fun RecordingDetailRoute(
-    onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: RecordingDetailViewModel = hiltViewModel()
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("audio/mp4")
-    ) { destinationUri ->
-        if (destinationUri == null) {
-            viewModel.onExportCancelled()
-        } else {
-            viewModel.exportRecording(destinationUri)
-        }
-    }
-
-    LaunchedEffect(uiState.shareIntent) {
-        val shareIntent = uiState.shareIntent ?: return@LaunchedEffect
-        context.startActivity(Intent.createChooser(shareIntent, "Share recording"))
-        viewModel.consumeShareIntent()
-    }
-
-    RecordingDetailScreen(
-        uiState = uiState,
-        onNavigateBack = onNavigateBack,
-        onPlay = viewModel::playAudio,
-        onPause = viewModel::pauseAudio,
-        onResume = viewModel::resumeAudio,
-        onSeekTo = viewModel::seekTo,
-        onSeekForward = viewModel::seekForward,
-        onSeekRewind = viewModel::seekRewind,
-        onSpeedChange = viewModel::setPlaybackSpeed,
-        onToggleFavorite = viewModel::toggleFavorite,
-        onUpdateTitle = viewModel::updateTitle,
-        onShare = viewModel::shareRecording,
-        onExport = {
-            exportLauncher.launch(uiState.suggestedExportFileName)
-        },
-        onSoftDelete = viewModel::softDeleteRecording,
-        onRestore = viewModel::restoreRecording,
-        onPermanentDelete = viewModel::permanentlyDeleteRecording,
-        onDismissOperationResult = viewModel::clearOperationResult,
-        onStartAiProcessing = viewModel::startAiProcessing,
-        onResetAiStatus = viewModel::resetAiStatus,
-        onRenameSpeaker = viewModel::renameSpeaker,
-        modifier = modifier
-    )
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordingDetailScreen(
     uiState: RecordingDetailUiState,
@@ -124,6 +81,7 @@ fun RecordingDetailScreen(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onSeekTo: (Long) -> Unit,
+    onPlayFrom: (Long) -> Unit,
     onSeekForward: () -> Unit,
     onSeekRewind: () -> Unit,
     onSpeedChange: (Float) -> Unit,
@@ -131,45 +89,55 @@ fun RecordingDetailScreen(
     onUpdateTitle: (String) -> Unit,
     onShare: () -> Unit,
     onExport: () -> Unit,
+    onShareInsights: () -> Unit,
+    onExportInsights: () -> Unit,
     onSoftDelete: () -> Unit,
     onRestore: () -> Unit,
     onPermanentDelete: () -> Unit,
     onDismissOperationResult: () -> Unit,
-    onStartAiProcessing: (Boolean) -> Unit,
+    onStartAiProcessing: (DefaultAnalysisMode?) -> Unit,
     onResetAiStatus: () -> Unit,
+    onCancelAiProcessing: () -> Unit,
+    onDismissMissingModelMessage: () -> Unit,
     onRenameSpeaker: (String, String) -> Unit,
+    onUpdateInsights: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var selectedTab by remember { mutableStateOf(RecordingDetailTab.OVERVIEW) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var speakerRenameTarget by remember { mutableStateOf<String?>(null) }
     var showConsentDialog by remember { mutableStateOf(false) }
+    var selectedAnalysisMode by remember { mutableStateOf(DefaultAnalysisMode.TRANSCRIPT_AND_INSIGHTS) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var pendingDeleteAction by remember { mutableStateOf<DeleteAction?>(null) }
+    var showInsightEditDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             LoomoraTopAppBar(
-                title = "Recording Details",
+                title = stringResource(R.string.detail_title),
                 onBackClick = onNavigateBack,
                 actions = {
                     uiState.recording?.let { rec ->
                         IconButton(onClick = onToggleFavorite) {
                             Icon(
                                 imageVector = if (rec.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                contentDescription = "Favorite",
+                                contentDescription = stringResource(
+                                    if (rec.isFavorite) R.string.detail_cd_unfavorite else R.string.detail_cd_favorite
+                                ),
                                 tint = if (rec.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                         }
                         IconButton(onClick = onShare) {
                             Icon(
                                 imageVector = Icons.Default.IosShare,
-                                contentDescription = "Share recording"
+                                contentDescription = stringResource(R.string.detail_cd_share)
                             )
                         }
                         IconButton(onClick = onExport) {
                             Icon(
                                 imageVector = Icons.Default.Download,
-                                contentDescription = "Export recording"
+                                contentDescription = stringResource(R.string.detail_cd_export)
                             )
                         }
                     }
@@ -188,9 +156,9 @@ fun RecordingDetailScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (uiState.recording == null) {
                 ErrorState(
-                    title = "Recording Not Found",
-                    message = "The requested recording metadata could not be retrieved from local database.",
-                    retryText = "Go Back",
+                    title = stringResource(R.string.detail_not_found_title),
+                    message = stringResource(R.string.detail_not_found_message),
+                    retryText = stringResource(R.string.detail_go_back),
                     onRetryClick = onNavigateBack,
                     modifier = Modifier.align(Alignment.Center)
                 )
@@ -223,8 +191,21 @@ fun RecordingDetailScreen(
                         }
                     }
 
+                    item {
+                        PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
+                            RecordingDetailTab.entries.forEach { tab ->
+                                Tab(
+                                    selected = selectedTab == tab,
+                                    onClick = { selectedTab = tab },
+                                    text = { Text(stringResource(tab.titleRes)) }
+                                )
+                            }
+                        }
+                    }
+
                     // Header Title & Rename Card
                     item {
+                        if (selectedTab == RecordingDetailTab.OVERVIEW) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -242,9 +223,17 @@ fun RecordingDetailScreen(
                                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    val dateFormat = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
+                                    val date = Date(recording.createdAt)
+                                    val dateText = DateFormat.getDateInstance(
+                                        DateFormat.MEDIUM,
+                                        Locale.getDefault()
+                                    ).format(date)
+                                    val timeText = DateFormat.getTimeInstance(
+                                        DateFormat.SHORT,
+                                        Locale.getDefault()
+                                    ).format(date)
                                     Text(
-                                        text = dateFormat.format(Date(recording.createdAt)),
+                                        text = "$dateText • $timeText",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -252,15 +241,17 @@ fun RecordingDetailScreen(
                                 IconButton(onClick = { showRenameDialog = true }) {
                                     Icon(
                                         imageVector = Icons.Default.Edit,
-                                        contentDescription = "Rename",
+                                        contentDescription = stringResource(R.string.detail_rename),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
                         }
+                        }
                     }
 
                     item {
+                        if (selectedTab == RecordingDetailTab.OVERVIEW) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -270,7 +261,7 @@ fun RecordingDetailScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Text(
-                                    text = if (isTrashed) "Trash actions" else "Library actions",
+                                    text = stringResource(if (isTrashed) R.string.detail_trash_actions else R.string.detail_library_actions),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -288,7 +279,7 @@ fun RecordingDetailScreen(
                                                 contentDescription = null
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text(text = "Restore")
+                                            Text(text = stringResource(R.string.detail_restore))
                                         }
                                     } else {
                                         OutlinedButton(
@@ -300,7 +291,7 @@ fun RecordingDetailScreen(
                                                 contentDescription = null
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text(text = "Move to trash")
+                                            Text(text = stringResource(R.string.detail_move_to_trash))
                                         }
                                     }
 
@@ -316,20 +307,22 @@ fun RecordingDetailScreen(
                                             contentDescription = null
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "Delete forever")
+                                        Text(text = stringResource(R.string.detail_delete_forever))
                                     }
                                 }
                             }
+                        }
                         }
                     }
 
                     // Playback Controls
                     item {
+                        if (selectedTab == RecordingDetailTab.OVERVIEW) {
                         if (!fileExists) {
                             ErrorState(
-                                title = "Recording file unavailable",
-                                message = "This recording file is missing or can no longer be opened from local storage.",
-                                retryText = "Remove entry",
+                                title = stringResource(R.string.detail_file_unavailable),
+                                message = stringResource(R.string.detail_file_unavailable_message),
+                                retryText = stringResource(R.string.detail_remove_entry),
                                 onRetryClick = {
                                     pendingDeleteAction = DeleteAction.Permanent
                                     showDeleteDialog = true
@@ -353,8 +346,8 @@ fun RecordingDetailScreen(
 
                                         is WaveformLoadState.Error -> {
                                             ErrorState(
-                                                title = "Waveform unavailable",
-                                                message = "Loomora could not build a waveform preview for this recording."
+                                                title = stringResource(R.string.detail_waveform_unavailable),
+                                                message = stringResource(R.string.detail_waveform_unavailable_message)
                                             )
                                         }
 
@@ -393,6 +386,7 @@ fun RecordingDetailScreen(
                                 }
                             }
                         }
+                        }
                     }
 
                     // Offline AI Transcript & Smart Insights Section
@@ -410,7 +404,7 @@ fun RecordingDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Offline AI Transcript & Smart Insights",
+                                        text = stringResource(R.string.detail_ai_title),
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -423,75 +417,81 @@ fun RecordingDetailScreen(
                                             onClick = { showConsentDialog = true },
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text(text = "Queue Offline Analysis")
+                                            Text(text = stringResource(R.string.detail_ai_queue))
                                         }
                                     }
                                     is AiJobStatus.ModelRequired -> {
                                         Text(
-                                            text = "Required offline models are missing for: ${status.requiredCapabilities.joinToString()}",
+                                            text = stringResource(R.string.detail_ai_models_missing, status.requiredCapabilities.joinToString()),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Button(onClick = { showConsentDialog = true }) {
-                                            Text(text = "Re-check Offline Models")
+                                            Text(text = stringResource(R.string.detail_ai_recheck))
                                         }
                                     }
                                     is AiJobStatus.VerifyingModels -> {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             CircularProgressIndicator(modifier = Modifier.size(20.dp))
                                             Spacer(modifier = Modifier.width(12.dp))
-                                            Text(text = "Verifying offline model installation...")
+                                            Text(text = stringResource(R.string.detail_ai_verifying))
                                         }
                                     }
                                     is AiJobStatus.PreparingAudio -> {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             CircularProgressIndicator(modifier = Modifier.size(20.dp))
                                             Spacer(modifier = Modifier.width(12.dp))
-                                            Text(text = "Preparing local audio package...")
+                                            Text(text = stringResource(R.string.detail_ai_preparing))
                                         }
                                     }
                                     is AiJobStatus.Queued -> {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             CircularProgressIndicator(modifier = Modifier.size(20.dp))
                                             Spacer(modifier = Modifier.width(12.dp))
-                                            Text(text = "Offline analysis queued locally.")
+                                            Text(text = stringResource(R.string.detail_ai_queued))
                                         }
                                     }
                                     is AiJobStatus.Processing -> {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             CircularProgressIndicator(
-                                                progress = { status.progress.coerceIn(0f, 1f) },
+                                                progress = { status.overallProgress.coerceIn(0f, 1f) },
                                                 modifier = Modifier.size(20.dp)
                                             )
                                             Spacer(modifier = Modifier.width(12.dp))
-                                            Text(text = status.stage)
+                                            Text(text = status.stage.localizedLabel())
+                                        }
+                                        TextButton(onClick = onCancelAiProcessing) {
+                                            Text(stringResource(R.string.detail_cancel_analysis))
                                         }
                                     }
                                     is AiJobStatus.Partial -> {
                                         Text(
-                                            text = "Partial transcript available (${status.transcript.size} segments)",
+                                            text = stringResource(R.string.detail_ai_partial, status.transcript.size),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     is AiJobStatus.Cancelled -> {
                                         Text(
-                                            text = "Offline transcription cancelled.",
+                                            text = stringResource(R.string.detail_ai_cancelled),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     is AiJobStatus.Completed -> {
                                         Text(
-                                            text = "Transcript & Insights Complete",
+                                            text = stringResource(R.string.detail_ai_complete),
                                             style = MaterialTheme.typography.titleSmall,
                                             color = MaterialTheme.colorScheme.primary
                                         )
+                                        TextButton(onClick = { showConsentDialog = true }) {
+                                            Text(stringResource(R.string.detail_analyze_again))
+                                        }
                                     }
                                     is AiJobStatus.CompletedWithHeuristicFallback -> {
                                         Text(
-                                            text = "Transcript & heuristic insights complete",
+                                            text = stringResource(R.string.detail_ai_heuristic_complete),
                                             style = MaterialTheme.typography.titleSmall,
                                             color = MaterialTheme.colorScheme.primary
                                         )
@@ -501,38 +501,84 @@ fun RecordingDetailScreen(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                        TextButton(onClick = { showConsentDialog = true }) {
+                                            Text(stringResource(R.string.detail_analyze_again))
+                                        }
                                     }
                                     is AiJobStatus.Failed -> {
                                         ErrorState(
-                                            title = "Offline Analysis Failed",
-                                            message = status.message,
-                                            retryText = "Retry",
-                                            onRetryClick = { onStartAiProcessing(true) }
+                                            title = status.stage?.let {
+                                                stringResource(R.string.detail_ai_failed_stage, it.localizedLabel())
+                                            } ?: stringResource(R.string.detail_ai_failed),
+                                            message = status.message.ifBlank { stringResource(R.string.detail_ai_failed_message) },
+                                            retryText = stringResource(R.string.detail_retry),
+                                            onRetryClick = { onStartAiProcessing(null) }
                                         )
+                                        TextButton(onClick = { showConsentDialog = true }) {
+                                            Text(stringResource(R.string.detail_choose_analysis_mode))
+                                        }
                                     }
                                 }
 
-                                uiState.insights?.let { revision ->
+                                if (selectedTab == RecordingDetailTab.INSIGHTS) uiState.insights?.let { revision ->
                                     val insights = revision.insights
                                     Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        text = insights.suggestedTitle,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = insights.suggestedTitle,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(onClick = { showInsightEditDialog = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = stringResource(R.string.detail_edit_insights)
+                                            )
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = insights.summary,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    InsightList("Key points", insights.keyPoints)
-                                    InsightList("Decisions", insights.decisions)
-                                    InsightList("Suggestions", insights.suggestions)
-                                    InsightList("Open questions", insights.openQuestions)
+                                    Text(
+                                        text = stringResource(
+                                            if (revision.generationMode == "HEURISTIC" || revision.completionQuality == "EXTRACTIVE_ONLY") {
+                                                R.string.detail_insight_extractive
+                                            } else {
+                                                R.string.detail_insight_enhanced
+                                            }
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedButton(onClick = onShareInsights, modifier = Modifier.weight(1f)) {
+                                            Icon(Icons.Default.IosShare, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(stringResource(R.string.detail_share_insights))
+                                        }
+                                        OutlinedButton(onClick = onExportInsights, modifier = Modifier.weight(1f)) {
+                                            Icon(Icons.Default.Download, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(stringResource(R.string.detail_export_insights))
+                                        }
+                                    }
+                                    InsightList(stringResource(R.string.detail_insight_key_points), insights.keyPoints)
+                                    InsightList(stringResource(R.string.detail_insight_decisions), insights.decisions)
+                                    InsightList(stringResource(R.string.detail_insight_suggestions), insights.suggestions)
+                                    InsightList(stringResource(R.string.detail_insight_questions), insights.openQuestions)
                                     if (insights.actionItems.isNotEmpty()) {
                                         InsightList(
-                                            title = "Action items",
+                                            title = stringResource(R.string.detail_insight_actions),
                                             values = insights.actionItems.map { item ->
                                                 buildString {
                                                     append(item.task)
@@ -544,8 +590,18 @@ fun RecordingDetailScreen(
                                     }
                                     if (insights.chapters.isNotEmpty()) {
                                         InsightList(
-                                            title = "Topics",
+                                            title = stringResource(R.string.detail_insight_topics),
                                             values = insights.chapters.map { "${formatDuration(it.startMs)} ${it.title}" }
+                                        )
+                                    }
+                                    if (insights.keyPoints.isEmpty() && insights.decisions.isEmpty() &&
+                                        insights.actionItems.isEmpty() && insights.openQuestions.isEmpty() &&
+                                        insights.suggestions.isEmpty()
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.detail_insight_no_structured_items),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -553,23 +609,28 @@ fun RecordingDetailScreen(
                                 val transcript = uiState.transcript
                                 val aliasMap = uiState.speakerAliases.associate { it.genericLabel to it.displayName }
                                 val diarization = uiState.diarization
-                                if (diarization != null && diarization.turns.isNotEmpty()) {
+                                if (selectedTab == RecordingDetailTab.INSIGHTS && diarization != null && diarization.turns.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
-                                        text = "Speaker timeline",
+                                        text = stringResource(R.string.detail_speaker_timeline),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Speaker labels are local generic labels. Rename only changes the display name; it does not enroll or identify a person.",
+                                        text = stringResource(R.string.detail_speaker_privacy),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     diarization.turns.forEach { turn ->
+                                        val spokenText = transcript?.segments
+                                            ?.filter { it.startMs < turn.endMs && it.endMs > turn.startMs }
+                                            ?.joinToString(" ") { it.text.trim() }
+                                            ?.trim()
+                                            .orEmpty()
                                         OutlinedButton(
-                                            onClick = { onSeekTo(turn.startMs) },
+                                            onClick = { onPlayFrom(turn.startMs) },
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Row(
@@ -585,22 +646,29 @@ fun RecordingDetailScreen(
                                                     )
                                                     Text(
                                                         text = "${formatDuration(turn.startMs)} - ${formatDuration(turn.endMs)}" +
-                                                            if (turn.isUncertain || turn.isOverlapped) " • uncertain" else "",
+                                                            if (turn.isUncertain || turn.isOverlapped) " • ${stringResource(R.string.detail_uncertain)}" else "",
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
+                                                    if (spokenText.isNotBlank()) {
+                                                        Text(
+                                                            text = spokenText,
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    }
                                                 }
                                                 TextButton(onClick = { speakerRenameTarget = turn.speakerLabel }) {
-                                                    Text(text = "Rename")
+                                                    Text(text = stringResource(R.string.detail_rename))
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                if (transcript != null && transcript.segments.isNotEmpty()) {
+                                if (selectedTab == RecordingDetailTab.TRANSCRIPT && transcript != null && transcript.segments.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
-                                        text = "Transcript",
+                                        text = stringResource(R.string.detail_tab_transcript),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -609,29 +677,31 @@ fun RecordingDetailScreen(
                                         val displaySpeaker = segment.speakerLabel?.let { label ->
                                             label.split(" + ").joinToString(" + ") { aliasMap[it] ?: it }
                                         }
-                                        OutlinedButton(
-                                            onClick = { onSeekTo(segment.startMs) },
-                                            modifier = Modifier.fillMaxWidth()
+                                        val isCurrent = currentPos in segment.startMs until segment.endMs
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                                            )
                                         ) {
-                                            Column(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.Top
                                             ) {
-                                                Text(
-                                                    text = listOfNotNull(
-                                                        "${formatDuration(segment.startMs)} - ${formatDuration(segment.endMs)}",
-                                                        displaySpeaker?.let {
-                                                            if (segment.speakerIsUncertain) "$it uncertain" else it
-                                                        }
-                                                    ).joinToString(" • "),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-                                                Text(
-                                                    text = segment.text,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
+                                                TextButton(onClick = { onSeekTo(segment.startMs) }) {
+                                                    Text(formatDuration(segment.startMs))
+                                                }
+                                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    displaySpeaker?.let {
+                                                        Text(
+                                                            text = if (segment.speakerIsUncertain) "$it ${stringResource(R.string.detail_uncertain)}" else it,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    }
+                                                    Text(segment.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                                }
                                             }
                                         }
                                     }
@@ -642,28 +712,30 @@ fun RecordingDetailScreen(
 
                     // Metadata Card & Markers
                     item {
+                        if (selectedTab == RecordingDetailTab.OVERVIEW) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Technical Metadata",
+                                    text = stringResource(R.string.detail_technical_metadata),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "MIME Type: ${recording.mimeType ?: "audio/aac"}",
+                                    text = stringResource(R.string.detail_mime_type, recording.mimeType),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Size: ${recording.sizeBytes / 1024} KB",
+                                    text = stringResource(R.string.detail_size_kb, recording.sizeBytes / 1024),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
+                        }
                         }
                     }
                 }
@@ -671,140 +743,53 @@ fun RecordingDetailScreen(
         }
     }
 
+    if (showInsightEditDialog) {
+        uiState.insights?.let { revision ->
+            EditInsightsDialog(
+                currentTitle = revision.insights.suggestedTitle,
+                currentSummary = revision.insights.summary,
+                onConfirm = { title, summary ->
+                    onUpdateInsights(title, summary)
+                    showInsightEditDialog = false
+                },
+                onDismiss = { showInsightEditDialog = false }
+            )
+        }
+    }
+
     if (showRenameDialog && uiState.recording != null) {
-        var newTitleText by remember { mutableStateOf(uiState.recording.title) }
-
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text(text = "Rename Recording") },
-            text = {
-                OutlinedTextField(
-                    value = newTitleText,
-                    onValueChange = { newTitleText = it },
-                    label = { Text(text = "Title") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onUpdateTitle(newTitleText)
-                        showRenameDialog = false
-                    }
-                ) {
-                    Text(text = "Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text(text = "Cancel")
-                }
-            }
+        RenameRecordingDialog(
+            currentTitle = uiState.recording.title,
+            onConfirm = { onUpdateTitle(it); showRenameDialog = false },
+            onDismiss = { showRenameDialog = false }
         )
     }
-
     speakerRenameTarget?.let { genericLabel ->
-        val currentName = uiState.speakerAliases.firstOrNull { it.genericLabel == genericLabel }?.displayName
-            ?: genericLabel
-        var newSpeakerName by remember(genericLabel) { mutableStateOf(currentName) }
-
-        AlertDialog(
-            onDismissRequest = { speakerRenameTarget = null },
-            title = { Text(text = "Rename $genericLabel") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = newSpeakerName,
-                        onValueChange = { newSpeakerName = it },
-                        label = { Text(text = "Display name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Text(
-                        text = "This is only a local display label. It does not enroll, identify, or replace a biometric speaker profile.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onRenameSpeaker(genericLabel, newSpeakerName)
-                        speakerRenameTarget = null
-                    }
-                ) {
-                    Text(text = "Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { speakerRenameTarget = null }) {
-                    Text(text = "Cancel")
-                }
-            }
+        RenameSpeakerDialog(
+            genericLabel = genericLabel,
+            currentName = uiState.speakerAliases.firstOrNull { it.genericLabel == genericLabel }?.displayName ?: genericLabel,
+            onConfirm = { onRenameSpeaker(genericLabel, it); speakerRenameTarget = null },
+            onDismiss = { speakerRenameTarget = null }
         )
     }
-
     if (showDeleteDialog && pendingDeleteAction != null) {
-        AlertDialog(
-            onDismissRequest = {
-                showDeleteDialog = false
-                pendingDeleteAction = null
-            },
-            title = { Text(text = "Delete recording permanently?") },
-            text = {
-                Text(text = "This removes the recording entry and tries to remove local files that belong to it.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onPermanentDelete()
-                        showDeleteDialog = false
-                        pendingDeleteAction = null
-                        onNavigateBack()
-                    }
-                ) {
-                    Text(text = "Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        pendingDeleteAction = null
-                    }
-                ) {
-                    Text(text = "Cancel")
-                }
-            }
+        DeleteRecordingDialog(
+            onConfirm = { onPermanentDelete(); showDeleteDialog = false; pendingDeleteAction = null; onNavigateBack() },
+            onDismiss = { showDeleteDialog = false; pendingDeleteAction = null }
         )
     }
-
     if (showConsentDialog) {
-        AlertDialog(
-            onDismissRequest = { showConsentDialog = false },
-            title = { Text(text = "Offline Analysis Check") },
-            text = {
-                Text(
-                    text = "Loomora keeps analysis on-device. This action checks local model availability and queues offline processing only when the required models are installed."
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showConsentDialog = false
-                        onStartAiProcessing(true)
-                    }
-                ) {
-                    Text(text = "Check & Queue")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConsentDialog = false }) {
-                    Text(text = "Cancel")
-                }
-            }
+        AnalysisModeDialog(
+            selectedMode = selectedAnalysisMode,
+            onModeSelected = { selectedAnalysisMode = it },
+            onConfirm = { showConsentDialog = false; onStartAiProcessing(selectedAnalysisMode) },
+            onDismiss = { showConsentDialog = false }
+        )
+    }
+    if (uiState.isTranscriptionModelMissing || uiState.isDiarizationModelMissing) {
+        MissingModelDialog(
+            missingDiarizationModel = uiState.isDiarizationModelMissing,
+            onDismiss = onDismissMissingModelMessage
         )
     }
 }
@@ -816,19 +801,19 @@ private fun OperationResultBanner(
     modifier: Modifier = Modifier
 ) {
     val (title, message) = when (result) {
-        RecordingOperationResult.Success -> "Done" to "The recording operation completed successfully."
-        RecordingOperationResult.NotFound -> "Recording not found" to "The selected recording could not be found anymore."
-        RecordingOperationResult.SourceMissing -> "Source file missing" to "The local audio file is missing or no longer readable."
-        RecordingOperationResult.ExportCancelled -> "Export cancelled" to "The export was cancelled before a file was created."
-        is RecordingOperationResult.LowStorage -> "Low storage" to "There is not enough free storage to finish this operation."
-        is RecordingOperationResult.FileSystemFailure -> "Storage operation failed" to "Loomora could not finish the local file operation safely."
-        is RecordingOperationResult.DatabaseFailure -> "Library update failed" to "Loomora could not update local library metadata."
+        RecordingOperationResult.Success -> stringResource(R.string.detail_result_done_title) to stringResource(R.string.detail_result_done_message)
+        RecordingOperationResult.NotFound -> stringResource(R.string.detail_result_not_found_title) to stringResource(R.string.detail_result_not_found_message)
+        RecordingOperationResult.SourceMissing -> stringResource(R.string.detail_result_source_missing_title) to stringResource(R.string.detail_result_source_missing_message)
+        RecordingOperationResult.ExportCancelled -> stringResource(R.string.detail_result_export_cancelled_title) to stringResource(R.string.detail_result_export_cancelled_message)
+        is RecordingOperationResult.LowStorage -> stringResource(R.string.detail_result_low_storage_title) to stringResource(R.string.detail_result_low_storage_message)
+        is RecordingOperationResult.FileSystemFailure -> stringResource(R.string.detail_result_storage_failed_title) to stringResource(R.string.detail_result_storage_failed_message)
+        is RecordingOperationResult.DatabaseFailure -> stringResource(R.string.detail_result_library_failed_title) to stringResource(R.string.detail_result_library_failed_message)
     }
 
     ErrorState(
         title = title,
         message = message,
-        retryText = "Dismiss",
+        retryText = stringResource(R.string.detail_dismiss),
         onRetryClick = onDismiss,
         modifier = modifier
     )
@@ -859,6 +844,12 @@ private enum class DeleteAction {
     Permanent
 }
 
+private enum class RecordingDetailTab(val titleRes: Int) {
+    OVERVIEW(R.string.detail_tab_overview),
+    TRANSCRIPT(R.string.detail_tab_transcript),
+    INSIGHTS(R.string.detail_tab_insights)
+}
+
 private fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs / 1000L
     val hours = totalSeconds / 3600L
@@ -870,3 +861,20 @@ private fun formatDuration(durationMs: Long): String {
         "%d:%02d".format(minutes, seconds)
     }
 }
+
+@Composable
+private fun AiProcessingStage.localizedLabel(): String = stringResource(
+    when (this) {
+        AiProcessingStage.PREPARING_AUDIO -> R.string.detail_stage_preparing
+        AiProcessingStage.TRANSCRIBING -> R.string.detail_stage_transcribing
+        AiProcessingStage.DIARIZING -> R.string.detail_stage_diarizing
+        AiProcessingStage.ALIGNING -> R.string.detail_stage_aligning
+        AiProcessingStage.GENERATING_INSIGHTS -> R.string.detail_stage_insights
+        AiProcessingStage.OPTIONAL_ENHANCEMENT -> R.string.detail_stage_enhancement
+        AiProcessingStage.VALIDATING -> R.string.detail_stage_validating
+        AiProcessingStage.PUBLISHING -> R.string.detail_stage_publishing
+        AiProcessingStage.CLEANING_UP -> R.string.detail_stage_cleanup
+        AiProcessingStage.CANCELLING -> R.string.detail_stage_cancelling
+        AiProcessingStage.RUNNING -> R.string.detail_stage_running
+    }
+)

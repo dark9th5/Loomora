@@ -53,7 +53,7 @@ import com.loomora.core.database.entity.TranscriptSegmentEntity
         TrialUsageEntity::class,
         TrialOperationEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class LoomoraDatabase : RoomDatabase() {

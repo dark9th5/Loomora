@@ -1,0 +1,11 @@
+<resources>
+    <string name="editor_title">Audio editor</string><string name="editor_undo">Undo</string><string name="editor_redo">Redo</string>
+    <string name="editor_not_found">Recording not found</string><string name="editor_not_found_message">Could not load this recording for editing.</string><string name="editor_back">Back</string>
+    <string name="editor_preserves_original">Non-destructive editing keeps the original recording intact.</string>
+    <string name="editor_preview">Edit preview</string><string name="editor_estimated_duration">Estimated output duration: %1$d ms</string><string name="editor_preview_full">The preview uses the full recording until edits are applied.</string><string name="editor_segment">Segment %1$d: %2$d–%3$d ms</string><string name="editor_recipe_invalid">Adjust the current edit before exporting.</string>
+    <string name="editor_waveform">Timeline waveform</string><string name="editor_waveform_unavailable">Waveform unavailable</string><string name="editor_waveform_message">Loomora could not load the saved waveform.</string>
+    <string name="editor_selection">Selection range (ms)</string><string name="editor_start">Start (ms)</string><string name="editor_end">End (ms)</string>
+    <string name="editor_trim">Trim selection</string><string name="editor_delete_range">Delete range</string>
+    <string name="editor_clarity">Speech clarity</string><string name="editor_clarity_desc">Applies a high-pass filter and loudness normalization</string>
+    <string name="editor_export">Export as new recording</string><string name="editor_cancel_export">Cancel export</string><string name="editor_share_export">Share exported recording</string>
+</resources>

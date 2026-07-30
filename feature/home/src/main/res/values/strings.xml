@@ -1,0 +1,29 @@
+<resources>
+    <string name="home_title">Loomora</string>
+    <string name="home_tagline">Smart voice recorder and local AI notes</string>
+    <string name="home_settings">Settings</string>
+    <string name="home_new_recording">New recording</string>
+    <string name="home_quick_modes">Quick modes</string>
+    <string name="home_mode_meeting">Meeting</string>
+    <string name="home_mode_interview">Interview</string>
+    <string name="home_mode_lecture">Lecture</string>
+    <string name="home_mode_voicenote">Voice note</string>
+    <string name="home_recent_recordings">Recent recordings</string>
+    <string name="home_empty_title">No recordings yet</string>
+    <string name="home_empty_desc">Start your first audio note when you are ready.</string>
+    <string name="home_start_record_cta">Start recording</string>
+    <string name="home_greeting">Capture what matters</string>
+    <string name="home_trial_remaining">%1$d of %2$d AI trial uses remaining</string>
+    <string name="home_active_ai_title">AI processing</string>
+    <string name="home_active_ai_message">Working locally on %1$s</string>
+    <string name="home_view_all">View all</string>
+    <string name="home_mode_meeting_desc">Organized notes for group discussions</string>
+    <string name="home_mode_interview_desc">Clear voices for questions and answers</string>
+    <string name="home_mode_lecture_desc">Long-form capture for classes and talks</string>
+    <string name="home_mode_voicenote_desc">Capture a quick thought</string>
+    <string name="home_status_audio_only">Audio only</string>
+    <string name="home_status_transcript">Transcript available</string>
+    <string name="home_status_transcript_insights">Transcript and insights available</string>
+    <string name="home_status_processing">AI processing locally</string>
+    <string name="home_status_failed">AI processing needs attention</string>
+</resources>

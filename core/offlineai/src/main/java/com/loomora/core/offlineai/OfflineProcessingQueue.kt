@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkInfo
 import com.loomora.core.database.entity.AnalysisJobEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -15,12 +16,13 @@ import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class OfflineProcessingQueue @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val analysisJobRepository: AnalysisJobRepository
 ) {
     fun observeJobsForRecording(recordingId: String): Flow<List<AnalysisJobEntity>> {
@@ -37,7 +39,10 @@ class OfflineProcessingQueue @Inject constructor(
         val job = analysisJobRepository.enqueueIfAbsent(
             recordingId = recordingId,
             sourceFingerprint = fingerprint,
-            requestedCapabilities = setOf(ModelCapability.TRANSCRIPTION),
+            requestedCapabilities = buildSet {
+                add(ModelCapability.TRANSCRIPTION)
+                if (options.diarizationEnabled) add(ModelCapability.DIARIZATION)
+            },
             options = options
         )
         val request = OneTimeWorkRequestBuilder<OfflineAnalysisWorker>()
@@ -58,7 +63,7 @@ class OfflineProcessingQueue @Inject constructor(
             .addTag(job.id)
             .build()
         WorkManager.getInstance(context)
-            .enqueueUniqueWork(job.logicalKey, ExistingWorkPolicy.KEEP, request)
+            .enqueueUniqueWork(job.logicalKey, ExistingWorkPolicy.REPLACE, request)
         analysisJobRepository.updateWorkRequestId(job.id, request.id.toString())
         return job
     }
@@ -69,7 +74,36 @@ class OfflineProcessingQueue @Inject constructor(
     }
 
     suspend fun reconcile() {
-        analysisJobRepository.reconcileRunningJobs()
+        val workManager = WorkManager.getInstance(context)
+        analysisJobRepository.pendingJobs().forEach { job ->
+            val workInfo = job.workRequestId?.let { id ->
+                runCatching { workManager.getWorkInfoById(UUID.fromString(id)).get() }.getOrNull()
+            }
+            when (workInfo?.state) {
+                WorkInfo.State.ENQUEUED,
+                WorkInfo.State.BLOCKED,
+                WorkInfo.State.RUNNING -> Unit
+                WorkInfo.State.CANCELLED -> analysisJobRepository.updateState(
+                    jobId = job.id,
+                    status = AnalysisJobStatus.CANCELLED,
+                    stage = OfflineAnalysisStage.CLEANING_UP,
+                    progress = job.progress
+                )
+                WorkInfo.State.SUCCEEDED -> markWorkerFailure(job, "WorkerFinishedWithoutResult")
+                WorkInfo.State.FAILED -> markWorkerFailure(job, "WorkerFailed")
+                null -> markWorkerFailure(job, "WorkRequestMissing")
+            }
+        }
+    }
+
+    private suspend fun markWorkerFailure(job: AnalysisJobEntity, errorCode: String) {
+        analysisJobRepository.updateState(
+            jobId = job.id,
+            status = AnalysisJobStatus.TERMINAL_FAILURE,
+            stage = OfflineAnalysisStage.CLEANING_UP,
+            progress = job.progress,
+            errorCode = errorCode
+        )
     }
 
     private fun sha256(file: File): String {

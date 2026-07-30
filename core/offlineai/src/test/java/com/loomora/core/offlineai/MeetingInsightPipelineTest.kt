@@ -101,6 +101,38 @@ class MeetingInsightPipelineTest {
     }
 
     @Test
+    fun shortTranscript_doesNotInventStructuredInsights() = runTest {
+        val input = MeetingInsightInput(
+            transcriptRevision = com.loomora.core.model.TranscriptRevision(
+                id = "tr-short",
+                recordingId = "rec-short",
+                sourceFingerprint = "source",
+                pipelineVersion = OfflineAiRuntimeVersions.TRANSCRIPTION_PIPELINE_VERSION,
+                modelId = "asr",
+                modelVersion = "1",
+                languageTag = "vi",
+                createdAt = 1L,
+                segments = listOf(
+                    TranscriptSegment(id = "s1", startMs = 20_000L, endMs = 21_000L, text = "Nói nó"),
+                    TranscriptSegment(id = "s2", startMs = 25_000L, endMs = 26_000L, text = "không có"),
+                    TranscriptSegment(id = "s3", startMs = 30_000L, endMs = 31_000L, text = "thể đoàn")
+                )
+            ),
+            model = null,
+            languageTag = "vi"
+        )
+
+        val output = HeuristicMeetingInsightEngine(json).analyze(input)
+
+        assertEquals("Bản ghi ngắn", output.insights.suggestedTitle)
+        assertEquals("Nói nó không có thể đoàn", output.insights.summary)
+        assertTrue(output.insights.keyPoints.isEmpty())
+        assertTrue(output.insights.decisions.isEmpty())
+        assertTrue(output.insights.actionItems.isEmpty())
+        assertTrue(output.insights.chapters.isEmpty())
+    }
+
+    @Test
     fun fallbackEngine_preservesHeuristicResultWhenLlamaCppUnavailable() = runTest {
         val gguf = java.io.File.createTempFile("loomora-llama", ".gguf")
         val baseInput = meetingInsightInput()

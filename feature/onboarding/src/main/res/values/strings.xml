@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_brand">Loomora</string>
+    <string name="onboarding_language_title">Choose your language</string>
+    <string name="onboarding_language_description">You can change this later in Settings.</string>
+    <string name="onboarding_language_english">English</string>
+    <string name="onboarding_language_vietnamese">Vietnamese</string>
+    <string name="onboarding_welcome_title">Welcome to Loomora</string>
+    <string name="onboarding_welcome_description">Record meetings, lectures, interviews, and voice notes. Audio stays local by default, and recording needs no account or internet connection.</string>
+    <string name="onboarding_record_title">How to record</string>
+    <string name="onboarding_record_description">1. Tap the large Record button.\n2. Pause or resume when needed.\n3. Add markers at important moments.\n4. Tap Stop &amp; Save.\n5. Find the recording in Library.</string>
+    <string name="onboarding_ai_title">Offline AI workflow</string>
+    <string name="onboarding_ai_description">Choose transcript only, transcript with Smart Insights, or full analysis with speaker labels after saving. Transcripts may appear before later results. Longer recordings take longer, and AI models require separate storage. Recording still works without them.</string>
+    <string name="onboarding_model_install">Download high-quality offline models</string>
+    <string name="onboarding_model_downloading">Downloading… %1$d%%</string>
+    <string name="onboarding_model_ready">High-quality offline models are ready</string>
+    <string name="onboarding_model_download_failed">Could not download the model. Check your connection or install it later in Settings.</string>
+    <string name="onboarding_model_optional">About 65 MB for transcription, speech detection, and speaker labels. You can install it later.</string>
+    <string name="onboarding_privacy_title">Privacy and microphone</string>
+    <string name="onboarding_privacy_description">Files stay on your device. The microphone is used only after you start recording. You may grant access now or later from the Recorder. No account is required for core recording.</string>
+    <string name="onboarding_allow_microphone">Allow microphone</string>
+    <string name="onboarding_not_now">Not now</string>
+    <string name="onboarding_microphone_granted">Microphone access granted</string>
+    <string name="onboarding_microphone_denied">Microphone access was not granted. You can enable it later when starting a recording or in system settings.</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_start">Start using Loomora</string>
+    <string name="onboarding_done">Done</string>
+</resources>

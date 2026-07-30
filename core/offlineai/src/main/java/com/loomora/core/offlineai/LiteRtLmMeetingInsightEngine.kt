@@ -231,10 +231,21 @@ class LiteRtLmMeetingInsightEngine @Inject constructor(
     }
 
     private fun emptyInsights(languageTag: String?): AiInsights {
+        val isVietnamese = languageTag?.lowercase()?.startsWith("vi") == true
         return AiInsights(
-            suggestedTitle = if (languageTag == "vi") "Ghi am khong co loi thoai" else "Empty transcript",
-            summary = if (languageTag == "vi") "Khong co noi dung transcript de phan tich." else "No transcript content was available for local analysis.",
-            chapters = listOf(Chapter(title = "Transcript", startMs = 0L, endMs = 0L))
+            suggestedTitle = if (isVietnamese) "Bản ghi không có lời thoại" else "Empty transcript",
+            summary = if (isVietnamese) {
+                "Không có nội dung bản chép lời để phân tích."
+            } else {
+                "No transcript content was available for local analysis."
+            },
+            chapters = listOf(
+                Chapter(
+                    title = if (isVietnamese) "Bản chép lời" else "Transcript",
+                    startMs = 0L,
+                    endMs = 0L
+                )
+            )
         )
     }
 

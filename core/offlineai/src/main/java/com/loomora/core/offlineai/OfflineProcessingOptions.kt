@@ -9,7 +9,9 @@ data class OfflineProcessingOptions(
     val diarizationEnabled: Boolean = true,
     val insightsMode: String = "HEURISTIC",
     val outputLanguage: String? = null,
-    val optionalLlmEnhancement: Boolean = false
+    val optionalLlmEnhancement: Boolean = false,
+    val performanceProfile: TranscriptionPerformanceProfile = TranscriptionPerformanceProfile.BALANCED,
+    val forceReanalysis: Boolean = false
 ) {
     fun canonical(): OfflineProcessingOptions {
         return copy(

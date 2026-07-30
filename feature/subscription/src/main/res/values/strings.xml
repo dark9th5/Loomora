@@ -1,0 +1,19 @@
+<resources>
+    <string name="subscription_title">Loomora Pro</string>
+    <string name="subscription_unlock">Unlock Loomora Pro</string>
+    <string name="subscription_trial_expired">Trial expired</string>
+    <string name="subscription_free_title">Free local recording, always</string>
+    <string name="subscription_free_note">Core recording, playback, and local file management remain free and offline.</string>
+    <string name="subscription_features">Pro features</string>
+    <string name="subscription_benefit_transcript">Unlimited AI transcripts and speaker labels</string>
+    <string name="subscription_benefit_insights">Smart insights, action items, and summaries</string>
+    <string name="subscription_benefit_export">Advanced non-destructive audio export</string>
+    <string name="subscription_benefit_privacy">Offline-first local processing</string>
+    <string name="subscription_buy_web">Buy Pro license on website</string>
+    <string name="subscription_import_title">Import signed offline license</string>
+    <string name="subscription_import_label">Signed license envelope JSON</string>
+    <string name="subscription_verify">Verify license</string>
+    <string name="subscription_continue_free">Continue with free local recording</string>
+    <string name="subscription_activated">Offline license activated for %1$d capabilities.</string>
+    <string name="subscription_invalid">The signed license is invalid, expired, or was issued for another installation.</string>
+</resources>

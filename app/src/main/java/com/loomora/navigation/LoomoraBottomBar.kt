@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.loomora.core.designsystem.R
 
@@ -50,7 +51,13 @@ fun LoomoraBottomBar(
                     )
                 },
                 label = {
-                    Text(text = stringResource(id = item.labelResId))
+                    Text(
+                        text = stringResource(id = item.labelResId),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             )

@@ -30,8 +30,15 @@ data class TranscriptionInput(
     val sourceFingerprint: String,
     val languageHint: String?,
     val model: OfflineModelRecord,
-    val speechWindows: List<SpeechWindow>
+    val speechWindows: List<SpeechWindow>,
+    val performanceProfile: TranscriptionPerformanceProfile = TranscriptionPerformanceProfile.BALANCED
 )
+
+enum class TranscriptionPerformanceProfile(val threadCount: Int) {
+    BATTERY_SAVER(1),
+    BALANCED(2),
+    FAST(4)
+}
 
 data class TranscriptionOutput(
     val segments: List<TranscriptSegment>,

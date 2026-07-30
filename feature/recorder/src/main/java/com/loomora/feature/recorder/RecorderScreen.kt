@@ -54,7 +54,6 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.loomora.core.audio.model.RecorderErrorType
 import com.loomora.core.audio.model.RecorderState
-import com.loomora.core.designsystem.R
 import com.loomora.core.designsystem.component.AudioWaveform
 import com.loomora.core.designsystem.component.LoomoraTopAppBar
 import com.loomora.core.designsystem.component.RecorderStatusPill
@@ -64,6 +63,7 @@ import java.util.Locale
 @Composable
 fun RecorderRoute(
     onNavigateBack: () -> Unit,
+    initialMode: String? = null,
     modifier: Modifier = Modifier,
     viewModel: RecorderViewModel = hiltViewModel()
 ) {
@@ -78,6 +78,7 @@ fun RecorderRoute(
 
     RecorderScreen(
         uiState = uiState,
+        initialMode = initialMode,
         onStartRecording = { title -> viewModel.startRecording(context, title) },
         onPauseRecording = { viewModel.pauseRecording(context) },
         onResumeRecording = { viewModel.resumeRecording(context) },
@@ -97,6 +98,7 @@ fun RecorderScreen(
     onStopRecording: () -> Unit,
     onAddMarker: () -> Unit,
     onNavigateBack: () -> Unit,
+    initialMode: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -118,7 +120,14 @@ fun RecorderScreen(
     var showStopConfirmation by remember { mutableStateOf(false) }
     val amplitudeHistory = remember { mutableStateListOf<Float>() }
     val hasActiveRecording = uiState.state is RecorderState.Recording || uiState.state is RecorderState.Paused
-    val defaultRecordingTitle = stringResource(id = R.string.recorder_default_title)
+    val modeTitle = when (initialMode) {
+        "MEETING" -> stringResource(R.string.home_mode_meeting)
+        "INTERVIEW" -> stringResource(R.string.home_mode_interview)
+        "LECTURE" -> stringResource(R.string.home_mode_lecture)
+        "VOICE_NOTE" -> stringResource(R.string.home_mode_voicenote)
+        else -> null
+    }
+    val defaultRecordingTitle = modeTitle ?: stringResource(id = R.string.recorder_default_title)
 
     BackHandler(enabled = hasActiveRecording) {
         showStopConfirmation = true
@@ -221,6 +230,11 @@ fun RecorderScreen(
 
                     RecorderStatusPill(type = statusPillType, label = statusLabel)
 
+                    modeTitle?.let {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
 
                     // Duration Timer (Authoritative timestamp, not UI-only timer!)
@@ -236,7 +250,8 @@ fun RecorderScreen(
                         text = timerText,
                         style = MaterialTheme.typography.displayLarge.copy(
                             fontSize = 64.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontFeatureSettings = "tnum"
                         ),
                         color = MaterialTheme.colorScheme.onBackground
                     )

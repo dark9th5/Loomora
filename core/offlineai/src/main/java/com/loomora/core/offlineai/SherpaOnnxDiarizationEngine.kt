@@ -48,8 +48,10 @@ class SherpaOnnxDiarizationEngine @Inject constructor(
             coroutineContext.ensureActive()
             val result = diarizer.process(samples)
             coroutineContext.ensureActive()
+            val normalizedSpeakerIndexes = result.map { it.speaker }.distinct().sorted()
+                .withIndex().associate { (normalized, raw) -> raw to normalized }
             val turns = result.map {
-                val speakerIndex = it.speaker
+                val speakerIndex = normalizedSpeakerIndexes.getValue(it.speaker)
                 SpeakerTurn(
                     startMs = (it.start * 1000f).roundToLong().coerceAtLeast(0L),
                     endMs = (it.end * 1000f).roundToLong().coerceAtLeast(0L),

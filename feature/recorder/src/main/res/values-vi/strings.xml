@@ -1,0 +1,12 @@
+<resources>
+    <string name="nav_recorder">Ghi âm</string><string name="action_cancel">Hủy</string>
+    <string name="onboarding_permission_title">Quyền truy cập micro</string><string name="onboarding_permission_desc">Chỉ cần quyền micro khi bạn chủ động bắt đầu ghi âm.</string>
+    <string name="home_mode_meeting">Cuộc họp</string><string name="home_mode_interview">Phỏng vấn</string><string name="home_mode_lecture">Bài giảng</string><string name="home_mode_voicenote">Ghi chú giọng nói</string>
+    <string name="recorder_default_title">Bản ghi mới</string><string name="recorder_permission_grant">Cho phép dùng micro</string>
+    <string name="recorder_status_ready">Sẵn sàng</string><string name="recorder_status_preparing">Đang chuẩn bị…</string><string name="recorder_status_recording">Đang ghi</string><string name="recorder_status_paused">Đã tạm dừng</string><string name="recorder_status_finalizing">Đang hoàn tất…</string><string name="recorder_status_saving">Đang lưu…</string><string name="recorder_status_saved">Đã lưu</string><string name="recorder_status_error">Lỗi</string>
+    <string name="recorder_action_record">Ghi âm</string><string name="recorder_action_stop_save">Dừng và lưu</string>
+    <string name="recorder_cd_add_marker">Thêm mốc</string><string name="recorder_cd_pause">Tạm dừng ghi âm</string><string name="recorder_cd_resume">Tiếp tục ghi âm</string><string name="recorder_cd_stop">Dừng ghi âm</string>
+    <string name="recorder_stop_dialog_title">Dừng và lưu bản ghi?</string><string name="recorder_stop_dialog_message">Bản ghi hiện tại sẽ được hoàn tất và lưu vào thư viện.</string>
+    <string name="recorder_error_start_failed">Không thể bắt đầu ghi âm. Hãy kiểm tra quyền micro và thử lại.</string><string name="recorder_error_pause_failed">Không thể tạm dừng. Bản ghi hiện tại vẫn được bảo vệ.</string><string name="recorder_error_resume_failed">Không thể tiếp tục. Bản ghi hiện tại vẫn được bảo vệ.</string><string name="recorder_error_finalize_failed">Không thể hoàn tất tệp. Bản thu gốc vẫn được bảo vệ khi có thể.</string><string name="recorder_error_save_failed">Đã thu âm nhưng chưa thể lưu. Hãy thử lại tại màn hình này.</string>
+    <string name="marker_default_label">Mốc #%1$d</string>
+</resources>

@@ -147,7 +147,7 @@ class RecorderViewModel @Inject constructor(
                     id = UUID.randomUUID().toString(),
                     recordingId = recordingId,
                     timeMs = durationMs,
-                    label = context.getString(com.loomora.core.designsystem.R.string.marker_default_label, markerIndex),
+                    label = context.getString(R.string.marker_default_label, markerIndex),
                     createdAt = System.currentTimeMillis()
                 )
             )

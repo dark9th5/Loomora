@@ -16,9 +16,14 @@ data class SubscriptionUiState(
     val status: EntitlementStatus = EntitlementStatus.FreeTrial(3),
     val activationInput: String = "",
     val isActivating: Boolean = false,
-    val activationMessage: String? = null,
+    val activationFeedback: SubscriptionFeedback? = null,
     val isSuccess: Boolean = false
 )
+
+sealed interface SubscriptionFeedback {
+    data class Activated(val capabilityCount: Int) : SubscriptionFeedback
+    data object Invalid : SubscriptionFeedback
+}
 
 @HiltViewModel
 class SubscriptionViewModel @Inject constructor(
@@ -37,7 +42,7 @@ class SubscriptionViewModel @Inject constructor(
     }
 
     fun onActivationInputChanged(input: String) {
-        _uiState.value = _uiState.value.copy(activationInput = input, activationMessage = null)
+        _uiState.value = _uiState.value.copy(activationInput = input, activationFeedback = null)
     }
 
     fun activateLicenseKey() {
@@ -51,14 +56,14 @@ class SubscriptionViewModel @Inject constructor(
                         isActivating = false,
                         isSuccess = true,
                         status = entitlementManager.getEntitlementStatus(),
-                        activationMessage = "Offline license activated for ${result.capabilities.size} capability/capabilities."
+                        activationFeedback = SubscriptionFeedback.Activated(result.capabilities.size)
                     )
                 }
                 is LicenseValidationResult.Invalid -> {
                     _uiState.value = _uiState.value.copy(
                         isActivating = false,
                         isSuccess = false,
-                        activationMessage = result.reason
+                        activationFeedback = SubscriptionFeedback.Invalid
                     )
                 }
             }

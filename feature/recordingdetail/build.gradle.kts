@@ -31,6 +31,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:audio"))
     implementation(project(":core:database"))
+    implementation(project(":core:datastore"))
     implementation(project(":core:offlineai"))
 
     implementation(platform(libs.compose.bom))
@@ -49,7 +50,9 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.datastore.preferences)
     testImplementation(project(":core:testing"))
+    testImplementation(files("../../core/offlineai/libs/sherpa-onnx-1.13.4.aar"))
 }
 
 kotlin {

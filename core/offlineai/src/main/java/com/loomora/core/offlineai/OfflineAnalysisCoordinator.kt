@@ -2,6 +2,7 @@ package com.loomora.core.offlineai
 
 import com.loomora.core.database.dao.RecordingDao
 import com.loomora.core.model.AiJobStatus
+import com.loomora.core.model.AiProcessingStage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,10 +11,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import java.io.File
-import java.io.FileInputStream
-import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.TimeSource
 
 @Singleton
 class OfflineAnalysisCoordinator @Inject constructor(
@@ -34,19 +34,23 @@ class OfflineAnalysisCoordinator @Inject constructor(
     private var activeJob: Job? = null
 
     suspend fun processAudio(recordingId: String, audioFileUri: String) {
-        processAudioInternal(recordingId, audioFileUri, existingJobId = null)
+        processAudioInternal(recordingId, audioFileUri, existingJobId = null, existingFingerprint = null)
     }
 
-    suspend fun processAudioForJob(jobId: String, recordingId: String, audioFileUri: String) {
-        processAudioInternal(recordingId, audioFileUri, existingJobId = jobId)
+    suspend fun processAudioForJob(jobId: String, recordingId: String, audioFileUri: String, sourceFingerprint: String? = null) {
+        processAudioInternal(recordingId, audioFileUri, existingJobId = jobId, existingFingerprint = sourceFingerprint)
     }
 
     private suspend fun processAudioInternal(
         recordingId: String,
         audioFileUri: String,
-        existingJobId: String?
+        existingJobId: String?,
+        existingFingerprint: String?
     ) {
         activeJob = currentCoroutineContext()[Job]
+        val totalMark = TimeSource.Monotonic.markNow()
+        var timings = OfflineAiStageTimings()
+        var timingJobId: String? = existingJobId
         val sourceFile = File(audioFileUri.removePrefix("file://"))
         if (!sourceFile.exists() || !sourceFile.isFile) {
             _jobStatus.value = AiJobStatus.Failed(
@@ -59,7 +63,14 @@ class OfflineAnalysisCoordinator @Inject constructor(
 
         _jobStatus.value = AiJobStatus.VerifyingModels
         recordingDao.updateTranscriptStatus(recordingId, "VERIFYING_MODELS", System.currentTimeMillis())
-        val model = modelRepository.getReadyModel(ModelCapability.TRANSCRIPTION)
+        val existingJob = existingJobId?.let { analysisJobRepository.getJob(it) }
+        val requestedOptions = existingJob?.let(analysisJobRepository::optionsFor)
+        val requestedModelId = requestedOptions?.transcriptionModelId
+        val model = if (requestedModelId == null) {
+            modelRepository.getReadyModel(ModelCapability.TRANSCRIPTION)
+        } else {
+            modelRepository.getReadyModel(requestedModelId)
+        }
         if (model == null) {
             _jobStatus.value = AiJobStatus.ModelRequired(
                 requiredCapabilities = listOf(ModelCapability.TRANSCRIPTION.name)
@@ -68,33 +79,42 @@ class OfflineAnalysisCoordinator @Inject constructor(
             return
         }
         val diarizationModel = modelRepository.getReadyModel(ModelCapability.DIARIZATION)
+        val vadModel = modelRepository.getReadyModel(ModelCapability.VOICE_ACTIVITY_DETECTION)
 
         var prepared: PreparedTranscriptionAudio? = null
+        var publishedTranscript: com.loomora.core.model.TranscriptRevision? = null
         try {
-            val sourceFingerprint = sha256(sourceFile)
+            val fingerprintMark = TimeSource.Monotonic.markNow()
+            val sourceFingerprint = existingFingerprint ?: preprocessor.fingerprint(sourceFile)
+            timings = timings.copy(
+                fingerprintMs = if (existingFingerprint == null) fingerprintMark.elapsedNow().inWholeMilliseconds else 0L
+            )
             val existingTranscript = transcriptRepository.findExistingRevision(
                 recordingId = recordingId,
                 sourceFingerprint = sourceFingerprint,
                 modelId = transcriptModelId(model, diarizationModel),
                 modelVersion = transcriptModelVersion(model, diarizationModel)
             )
-            val job = existingJobId?.let { analysisJobRepository.getJob(it) } ?: analysisJobRepository.enqueueIfAbsent(
+            val effectiveOptions = requestedOptions ?: OfflineProcessingOptions(
+                transcriptionModelId = model.manifest.id,
+                diarizationEnabled = diarizationModel != null,
+                insightsMode = "HEURISTIC",
+                outputLanguage = null
+            )
+            val job = existingJob ?: analysisJobRepository.enqueueIfAbsent(
                 recordingId = recordingId,
                 sourceFingerprint = sourceFingerprint,
                 requestedCapabilities = setOf(ModelCapability.TRANSCRIPTION),
-                options = OfflineProcessingOptions(
-                    transcriptionModelId = model.manifest.id,
-                    diarizationEnabled = diarizationModel != null,
-                    insightsMode = "HEURISTIC",
-                    outputLanguage = null
-                )
+                options = effectiveOptions
             )
-            if (existingTranscript != null) {
-                val insights = runInsightsIfAvailable(
+            timingJobId = job.id
+            if (existingTranscript != null && !effectiveOptions.forceReanalysis) {
+                val insights = if (effectiveOptions.insightsMode == "NONE") null else runInsightsIfAvailable(
                     jobId = job.id,
                     recordingId = recordingId,
                     transcriptRevision = existingTranscript,
-                    languageTag = existingTranscript.languageTag
+                    languageTag = existingTranscript.languageTag,
+                    forceRegeneration = false
                 )
                 analysisJobRepository.updateState(
                     jobId = job.id,
@@ -124,10 +144,18 @@ class OfflineAnalysisCoordinator @Inject constructor(
                 stage = OfflineAnalysisStage.PREPARING_AUDIO,
                 progress = 0.15f
             )
-            prepared = preprocessor.prepare(sourceFile)
+            prepared = if (vadModel == null) {
+                preprocessor.prepare(sourceFile, sourceFingerprint)
+            } else {
+                preprocessor.prepare(sourceFile, sourceFingerprint, vadModel)
+            }
+            timings = timings.copy(
+                decodeAndResampleMs = prepared.decodeAndResampleMs,
+                speechDetectionMs = prepared.speechDetectionMs
+            )
             currentCoroutineContext().ensureActive()
 
-            _jobStatus.value = AiJobStatus.Processing("Transcribing", 0.45f)
+            _jobStatus.value = AiJobStatus.Processing(AiProcessingStage.TRANSCRIBING, 0.45f)
             analysisJobRepository.updateState(
                 job.id,
                 AnalysisJobStatus.RUNNING,
@@ -135,24 +163,45 @@ class OfflineAnalysisCoordinator @Inject constructor(
                 progress = 0.45f,
                 modelVersionsJson = """{"${model.manifest.id}":"${model.manifest.version}"}"""
             )
+            val transcriptionMark = TimeSource.Monotonic.markNow()
+            engineLifecycleManager.register(transcriptionEngine)
             val output = transcriptionEngine.transcribe(
                 TranscriptionInput(
                     pcm16kMonoFile = prepared.pcm16kMonoFile,
                     originalAudioFile = prepared.sourceFile,
                     sourceFingerprint = prepared.sourceFingerprint,
-                    languageHint = null,
+                    languageHint = effectiveOptions.outputLanguage,
                     model = model,
-                    speechWindows = prepared.speechWindows
+                    speechWindows = prepared.speechWindows,
+                    performanceProfile = effectiveOptions.performanceProfile
                 )
             )
+            timings = timings.copy(
+                transcriptionMs = transcriptionMark.elapsedNow().inWholeMilliseconds
+            )
             currentCoroutineContext().ensureActive()
+            val cleanedSegments = TranscriptHallucinationFilter.clean(output.segments)
 
-            val fusedSegments = if (diarizationModel == null || output.segments.isEmpty()) {
-                output.segments
+            val partialRevision = transcriptRepository.publishRevision(
+                recordingId = recordingId,
+                sourceFingerprint = prepared.sourceFingerprint,
+                modelId = output.modelId,
+                modelVersion = output.modelVersion,
+                languageTag = output.languageTag,
+                segments = cleanedSegments,
+                processingDurationMs = output.processingDurationMs,
+                memoryObservationKb = output.memoryObservationKb
+            )
+            publishedTranscript = partialRevision
+            recordingDao.updateTranscriptStatus(recordingId, "AVAILABLE", System.currentTimeMillis())
+            _jobStatus.value = AiJobStatus.Partial(partialRevision.segments, progress = 0.68f)
+
+            val fusedSegments = if (!effectiveOptions.diarizationEnabled || diarizationModel == null || cleanedSegments.isEmpty()) {
+                cleanedSegments
             } else {
-                _jobStatus.value = AiJobStatus.Processing("Diarizing speakers", 0.72f)
+                _jobStatus.value = AiJobStatus.Processing(AiProcessingStage.DIARIZING, 0.72f)
                 val clustering = DiarizationClusteringSettings()
-                val existingDiarization = diarizationRepository.findExistingRevision(
+                val existingDiarization = if (effectiveOptions.forceReanalysis) null else diarizationRepository.findExistingRevision(
                     recordingId = recordingId,
                     sourceFingerprint = prepared.sourceFingerprint,
                     modelId = diarizationModel.manifest.id,
@@ -167,6 +216,8 @@ class OfflineAnalysisCoordinator @Inject constructor(
                         progress = 0.72f,
                         modelVersionsJson = """{"${model.manifest.id}":"${model.manifest.version}","${diarizationModel.manifest.id}":"${diarizationModel.manifest.version}"}"""
                     )
+                    val diarizationMark = TimeSource.Monotonic.markNow()
+                    engineLifecycleManager.register(diarizationEngine)
                     val diarizationOutput = diarizationEngine.diarize(
                         DiarizationInput(
                             pcm16kMonoFile = prepared.pcm16kMonoFile,
@@ -175,6 +226,9 @@ class OfflineAnalysisCoordinator @Inject constructor(
                             model = diarizationModel,
                             clustering = clustering
                         )
+                    )
+                    timings = timings.copy(
+                        diarizationMs = diarizationMark.elapsedNow().inWholeMilliseconds
                     )
                     currentCoroutineContext().ensureActive()
                     diarizationRepository.publishRevision(
@@ -188,31 +242,44 @@ class OfflineAnalysisCoordinator @Inject constructor(
                         memoryObservationKb = diarizationOutput.memoryObservationKb
                     )
                 }
-                _jobStatus.value = AiJobStatus.Processing("Aligning speakers", 0.86f)
+                _jobStatus.value = AiJobStatus.Processing(AiProcessingStage.ALIGNING, 0.86f)
                 analysisJobRepository.updateState(
                     job.id,
                     AnalysisJobStatus.RUNNING,
                     stage = OfflineAnalysisStage.ALIGNING,
                     progress = 0.86f
                 )
-                TranscriptSpeakerFusion.fuse(output.segments, diarization.turns)
+                val alignmentMark = TimeSource.Monotonic.markNow()
+                TranscriptSpeakerFusion.fuse(cleanedSegments, diarization.turns).also {
+                    timings = timings.copy(
+                        alignmentMs = alignmentMark.elapsedNow().inWholeMilliseconds
+                    )
+                }
             }
 
-            val revision = transcriptRepository.publishRevision(
+            val revision = if (!effectiveOptions.diarizationEnabled || diarizationModel == null) {
+                partialRevision
+            } else transcriptRepository.publishRevision(
                 recordingId = recordingId,
                 sourceFingerprint = prepared.sourceFingerprint,
-                modelId = if (diarizationModel == null) output.modelId else "${output.modelId}+${diarizationModel.manifest.id}",
-                modelVersion = if (diarizationModel == null) output.modelVersion else "${output.modelVersion}+${diarizationModel.manifest.version}",
+                modelId = "${output.modelId}+${diarizationModel.manifest.id}",
+                modelVersion = "${output.modelVersion}+${diarizationModel.manifest.version}",
                 languageTag = output.languageTag,
                 segments = fusedSegments,
                 processingDurationMs = output.processingDurationMs,
                 memoryObservationKb = output.memoryObservationKb
             )
-            val insights = runInsightsIfAvailable(
+            publishedTranscript = revision
+            val insightMark = TimeSource.Monotonic.markNow()
+            val insights = if (effectiveOptions.insightsMode == "NONE") null else runInsightsIfAvailable(
                 jobId = job.id,
                 recordingId = recordingId,
                 transcriptRevision = revision,
-                languageTag = output.languageTag
+                languageTag = output.languageTag,
+                forceRegeneration = effectiveOptions.forceReanalysis
+            )
+            timings = timings.copy(
+                heuristicInsightsMs = insightMark.elapsedNow().inWholeMilliseconds
             )
             analysisJobRepository.updateState(
                 job.id,
@@ -233,7 +300,11 @@ class OfflineAnalysisCoordinator @Inject constructor(
                 AiJobStatus.Completed(revision.segments, insights = insights?.insights)
             }
         } catch (cancellation: CancellationException) {
-            recordingDao.updateTranscriptStatus(recordingId, "CANCELLED", System.currentTimeMillis())
+            recordingDao.updateTranscriptStatus(
+                recordingId,
+                if (publishedTranscript == null) "CANCELLED" else "AVAILABLE",
+                System.currentTimeMillis()
+            )
             recordingDao.updateInsightStatus(recordingId, "CANCELLED", System.currentTimeMillis())
             existingJobId?.let {
                 analysisJobRepository.updateState(
@@ -246,7 +317,11 @@ class OfflineAnalysisCoordinator @Inject constructor(
             _jobStatus.value = AiJobStatus.Cancelled
             throw cancellation
         } catch (error: OfflineAiException) {
-            recordingDao.updateTranscriptStatus(recordingId, "FAILED", System.currentTimeMillis())
+            recordingDao.updateTranscriptStatus(
+                recordingId,
+                if (publishedTranscript == null) "FAILED" else "AVAILABLE",
+                System.currentTimeMillis()
+            )
             recordingDao.updateInsightStatus(recordingId, "FAILED", System.currentTimeMillis())
             existingJobId?.let {
                 analysisJobRepository.updateState(
@@ -263,10 +338,20 @@ class OfflineAnalysisCoordinator @Inject constructor(
             }
             _jobStatus.value = AiJobStatus.Failed(
                 message = userMessage(error),
-                isRetryable = error !is OfflineAiException.DeviceIncompatible && error !is OfflineAiException.ModelMissing
+                isRetryable = error !is OfflineAiException.DeviceIncompatible && error !is OfflineAiException.ModelMissing,
+                preservedTranscript = publishedTranscript?.segments
             )
         } finally {
+            timingJobId?.let { jobId ->
+                timings = timings.copy(totalMs = totalMark.elapsedNow().inWholeMilliseconds)
+                try {
+                    analysisJobRepository.updateTimings(jobId, timings)
+                } catch (_: Exception) {
+                    // Timing persistence must never mask the analysis result.
+                }
+            }
             preprocessor.cleanup(prepared)
+            engineLifecycleManager.close()
             activeJob = null
         }
     }
@@ -284,7 +369,8 @@ class OfflineAnalysisCoordinator @Inject constructor(
         jobId: String,
         recordingId: String,
         transcriptRevision: com.loomora.core.model.TranscriptRevision,
-        languageTag: String?
+        languageTag: String?,
+        forceRegeneration: Boolean
     ): com.loomora.core.model.InsightRevision? {
         val insightModel = modelRepository.getReadyModel(ModelCapability.INSIGHTS)
         val insightModelId = when (insightModel?.manifest?.runtime) {
@@ -297,25 +383,26 @@ class OfflineAnalysisCoordinator @Inject constructor(
             null -> OfflineAiRuntimeVersions.HEURISTIC_INSIGHTS_MODEL_VERSION
             else -> insightModel.manifest.version
         }
-        insightRepository.findExistingGeneratedRevision(
-            recordingId = recordingId,
-            transcriptRevisionId = transcriptRevision.id,
-            modelId = insightModelId,
-            modelVersion = insightModelVersion
-        )?.let { existing ->
-            recordingDao.updateInsightStatus(recordingId, "COMPLETE", System.currentTimeMillis())
-            return existing
+        if (!forceRegeneration) {
+            insightRepository.findExistingGeneratedRevision(
+                recordingId = recordingId,
+                transcriptRevisionId = transcriptRevision.id,
+                modelId = insightModelId,
+                modelVersion = insightModelVersion
+            )?.let { existing ->
+                recordingDao.updateInsightStatus(recordingId, "COMPLETE", System.currentTimeMillis())
+                return existing
+            }
         }
         recordingDao.updateInsightStatus(recordingId, "PROCESSING", System.currentTimeMillis())
-        _jobStatus.value = AiJobStatus.Processing("Unloading speech models", 0.9f)
-        engineLifecycleManager.close()
-        _jobStatus.value = AiJobStatus.Processing("Generating local insights", 0.93f)
+        _jobStatus.value = AiJobStatus.Processing(AiProcessingStage.GENERATING_INSIGHTS, 0.93f)
         analysisJobRepository.updateState(
             jobId,
             AnalysisJobStatus.RUNNING,
             stage = OfflineAnalysisStage.GENERATING_HEURISTIC_INSIGHTS,
             progress = 0.93f
         )
+        engineLifecycleManager.register(meetingInsightEngine)
         val output = meetingInsightEngine.analyze(
             MeetingInsightInput(
                 transcriptRevision = transcriptRevision,
@@ -352,19 +439,6 @@ class OfflineAnalysisCoordinator @Inject constructor(
         }
         recordingDao.updateInsightStatus(recordingId, insightStatus, System.currentTimeMillis())
         return revision
-    }
-
-    private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        FileInputStream(file).use { input ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString(separator = "") { "%02x".format(it) }
     }
 
     private fun transcriptModelId(

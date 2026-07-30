@@ -8,6 +8,7 @@ export default function AttributionsPage() {
       <ul className="mt-8 space-y-3 text-sm text-slate-300">
         <li>sherpa-onnx for offline speech recognition and diarization runtime integration.</li>
         <li>Media3 for Android audio playback/edit/export pipeline.</li>
+        <li>RNNoise by Xiph.Org for offline neural-network noise suppression (BSD 3-Clause).</li>
         <li>Next.js, React, Tailwind CSS, Auth.js, Prisma, and Zod for this portal.</li>
       </ul>
     </div>

@@ -77,6 +77,56 @@ class OfflineProcessingQueueTest {
     }
 
     @Test
+    fun enqueueAfterCompletion_restartsSameLogicalJobAndClearsTerminalState() = runTest {
+        val first = repository.enqueueIfAbsent(
+            recordingId = "rec-rerun",
+            sourceFingerprint = "fingerprint",
+            requestedCapabilities = setOf(ModelCapability.TRANSCRIPTION)
+        )
+        repository.updateState(
+            jobId = first.id,
+            status = AnalysisJobStatus.COMPLETED,
+            stage = OfflineAnalysisStage.CLEANING_UP,
+            progress = 1f,
+            stageOutputRef = "old-output",
+            errorCode = "old-error"
+        )
+
+        val restarted = repository.enqueueIfAbsent(
+            recordingId = "rec-rerun",
+            sourceFingerprint = "fingerprint",
+            requestedCapabilities = setOf(ModelCapability.TRANSCRIPTION)
+        )
+
+        assertEquals(first.id, restarted.id)
+        assertEquals(AnalysisJobStatus.QUEUED.name, restarted.status)
+        assertEquals(1, restarted.attempt)
+        assertEquals(0f, restarted.progress)
+        assertNull(restarted.stageOutputRef)
+        assertNull(restarted.errorCode)
+        assertEquals(1, database.analysisJobDao().observeJobsForRecording("rec-rerun").first().size)
+    }
+
+    @Test
+    fun processingOptions_roundTripPreservesRuntimePolicy() = runTest {
+        val expected = OfflineProcessingOptions(
+            diarizationEnabled = false,
+            insightsMode = "none",
+            outputLanguage = "VI",
+            performanceProfile = TranscriptionPerformanceProfile.FAST,
+            forceReanalysis = true
+        ).canonical()
+        val job = repository.enqueueIfAbsent(
+            recordingId = "rec-options",
+            sourceFingerprint = "fingerprint",
+            requestedCapabilities = setOf(ModelCapability.TRANSCRIPTION),
+            options = expected
+        )
+
+        assertEquals(expected, repository.optionsFor(job))
+    }
+
+    @Test
     fun cancelPersistsCancelRequestedWithoutRetryState() = runTest {
         val job = repository.enqueueIfAbsent(
             recordingId = "rec-1",

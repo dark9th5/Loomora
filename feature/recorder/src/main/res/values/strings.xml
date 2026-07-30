@@ -1,0 +1,12 @@
+<resources>
+    <string name="nav_recorder">Recorder</string><string name="action_cancel">Cancel</string>
+    <string name="onboarding_permission_title">Microphone access</string><string name="onboarding_permission_desc">Microphone access is needed only when you choose to record.</string>
+    <string name="home_mode_meeting">Meeting</string><string name="home_mode_interview">Interview</string><string name="home_mode_lecture">Lecture</string><string name="home_mode_voicenote">Voice note</string>
+    <string name="recorder_default_title">New recording</string><string name="recorder_permission_grant">Allow microphone</string>
+    <string name="recorder_status_ready">Ready</string><string name="recorder_status_preparing">Preparing…</string><string name="recorder_status_recording">Recording</string><string name="recorder_status_paused">Paused</string><string name="recorder_status_finalizing">Finalizing…</string><string name="recorder_status_saving">Saving…</string><string name="recorder_status_saved">Saved</string><string name="recorder_status_error">Error</string>
+    <string name="recorder_action_record">Record</string><string name="recorder_action_stop_save">Stop and save</string>
+    <string name="recorder_cd_add_marker">Add marker</string><string name="recorder_cd_pause">Pause recording</string><string name="recorder_cd_resume">Resume recording</string><string name="recorder_cd_stop">Stop recording</string>
+    <string name="recorder_stop_dialog_title">Stop and save recording?</string><string name="recorder_stop_dialog_message">The current recording will be finalized and saved to your library.</string>
+    <string name="recorder_error_start_failed">Could not start recording. Check microphone access and try again.</string><string name="recorder_error_pause_failed">Could not pause. The current recording remains protected.</string><string name="recorder_error_resume_failed">Could not resume. The current recording remains protected.</string><string name="recorder_error_finalize_failed">Could not finalize the file. The original capture remains protected when possible.</string><string name="recorder_error_save_failed">Audio was captured but could not be saved. Try again from this screen.</string>
+    <string name="marker_default_label">Marker #%1$d</string>
+</resources>

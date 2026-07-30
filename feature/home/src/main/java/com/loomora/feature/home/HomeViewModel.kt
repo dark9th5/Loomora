@@ -14,7 +14,8 @@ import javax.inject.Inject
 
 data class HomeUiState(
     val remainingTrialUses: Int = 3,
-    val recentRecordings: List<Recording> = emptyList()
+    val recentRecordings: List<Recording> = emptyList(),
+    val activeAiRecording: Recording? = null
 )
 
 @HiltViewModel
@@ -26,7 +27,11 @@ class HomeViewModel @Inject constructor(
         .map { list ->
             HomeUiState(
                 remainingTrialUses = 3,
-                recentRecordings = list.take(5)
+                recentRecordings = list.take(5),
+                activeAiRecording = list.firstOrNull {
+                    it.transcriptStatus in setOf("QUEUED", "PROCESSING") ||
+                        it.insightStatus in setOf("QUEUED", "PROCESSING")
+                }
             )
         }
         .stateIn(

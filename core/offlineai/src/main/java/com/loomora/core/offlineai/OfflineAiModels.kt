@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 enum class ModelCapability {
     TRANSCRIPTION,
+    VOICE_ACTIVITY_DETECTION,
     DIARIZATION,
     INSIGHTS,
     SPEECH_ENHANCEMENT
@@ -152,3 +153,17 @@ enum class InsightCompletionQuality {
     ENHANCED,
     DEGRADED_BUT_VALID
 }
+
+@Serializable
+data class OfflineAiStageTimings(
+    val fingerprintMs: Long = 0,
+    val decodeAndResampleMs: Long = 0,
+    val speechDetectionMs: Long = 0,
+    val recognizerLoadMs: Long = 0,
+    val transcriptionMs: Long = 0,
+    val diarizationMs: Long = 0,
+    val alignmentMs: Long = 0,
+    val heuristicInsightsMs: Long = 0,
+    val optionalLlmMs: Long = 0,
+    val totalMs: Long = 0
+)

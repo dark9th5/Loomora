@@ -5,6 +5,9 @@ import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import com.k2fsa.sherpa.onnx.SileroVadModelConfig
+import com.k2fsa.sherpa.onnx.Vad
+import com.k2fsa.sherpa.onnx.VadModelConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -22,33 +25,60 @@ import javax.inject.Singleton
 import kotlin.coroutines.coroutineContext
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.time.TimeSource
 
 @Singleton
 open class AudioTranscriptionPreprocessor @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
-    open suspend fun prepare(sourceFile: File): PreparedTranscriptionAudio = withContext(Dispatchers.IO) {
+    open suspend fun fingerprint(sourceFile: File): String = withContext(Dispatchers.IO) {
+        if (!sourceFile.exists() || !sourceFile.isFile) {
+            throw OfflineAiException.FileMissing
+        }
+        sha256(sourceFile)
+    }
+
+    open suspend fun prepare(sourceFile: File): PreparedTranscriptionAudio {
+        return prepare(sourceFile, sourceFingerprint = null)
+    }
+
+    open suspend fun prepare(
+        sourceFile: File,
+        sourceFingerprint: String?
+    ): PreparedTranscriptionAudio = prepare(sourceFile, sourceFingerprint, vadModel = null)
+
+    open suspend fun prepare(
+        sourceFile: File,
+        sourceFingerprint: String?,
+        vadModel: OfflineModelRecord?
+    ): PreparedTranscriptionAudio = withContext(Dispatchers.IO) {
         if (!sourceFile.exists() || !sourceFile.isFile) {
             throw OfflineAiException.FileMissing
         }
 
-        val sourceFingerprint = sha256(sourceFile)
+        val resolvedFingerprint = sourceFingerprint ?: sha256(sourceFile)
         val tempDir = File(context.cacheDir, "offline-ai/transcription").apply { mkdirs() }
         val tempPcm = File(tempDir, "${sourceFile.nameWithoutExtension}-${System.nanoTime()}.pcm")
 
         try {
+            val decodeMark = TimeSource.Monotonic.markNow()
             if (sourceFile.extension.equals("wav", ignoreCase = true)) {
                 val wav = parseWavHeader(sourceFile)
                 streamWavToPcm16kMono(sourceFile, wav, tempPcm)
             } else {
                 streamAndroidAudioToPcm16kMono(sourceFile, tempPcm)
             }
-            val windows = detectSpeechWindows(tempPcm)
+            val decodeAndResampleMs = decodeMark.elapsedNow().inWholeMilliseconds
+            val speechDetectionMark = TimeSource.Monotonic.markNow()
+            val windows = detectSpeechWindows(tempPcm, vadModel)
+            val speechDetectionMs = speechDetectionMark.elapsedNow().inWholeMilliseconds
             PreparedTranscriptionAudio(
                 sourceFile = sourceFile,
-                sourceFingerprint = sourceFingerprint,
+                sourceFingerprint = resolvedFingerprint,
                 pcm16kMonoFile = tempPcm,
-                speechWindows = windows
+                speechWindows = windows,
+                decodeAndResampleMs = decodeAndResampleMs,
+                speechDetectionMs = speechDetectionMs
             )
         } catch (cancellation: CancellationException) {
             tempPcm.delete()
@@ -241,7 +271,77 @@ open class AudioTranscriptionPreprocessor @Inject constructor(
         )
     }
 
-    private suspend fun detectSpeechWindows(pcmFile: File): List<SpeechWindow> {
+    private suspend fun detectSpeechWindows(
+        pcmFile: File,
+        vadModel: OfflineModelRecord?
+    ): List<SpeechWindow> {
+        val modelFile = vadModel?.installedPath?.let(::File)
+        if (modelFile?.isFile == true) {
+            runCatching { detectSpeechWindowsWithSilero(pcmFile, modelFile) }
+                .getOrNull()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { return it }
+        }
+        return detectSpeechWindowsByAmplitude(pcmFile)
+    }
+
+    private suspend fun detectSpeechWindowsWithSilero(pcmFile: File, modelFile: File): List<SpeechWindow> {
+        val vad = Vad(
+            null,
+            VadModelConfig(
+                sileroVadModelConfig = SileroVadModelConfig(
+                    model = modelFile.absolutePath,
+                    threshold = 0.25f,
+                    minSilenceDuration = 0.5f,
+                    minSpeechDuration = 0.15f,
+                    windowSize = VAD_WINDOW_SAMPLES,
+                    maxSpeechDuration = 30f
+                ),
+                sampleRate = TARGET_SAMPLE_RATE,
+                numThreads = 1,
+                provider = "cpu",
+                debug = false
+            )
+        )
+        return try {
+            FileInputStream(pcmFile).use { input ->
+                val bytes = ByteArray(VAD_WINDOW_SAMPLES * 2)
+                while (true) {
+                    coroutineContext.ensureActive()
+                    val read = input.read(bytes)
+                    if (read <= 0) break
+                    val samples = FloatArray((read / 2).coerceAtLeast(VAD_WINDOW_SAMPLES))
+                    var index = 0
+                    while (index < read / 2) {
+                        val lo = bytes[index * 2].toInt() and 0xff
+                        val hi = bytes[index * 2 + 1].toInt()
+                        samples[index] = ((hi shl 8) or lo).toShort() / Short.MAX_VALUE.toFloat()
+                        index++
+                    }
+                    vad.acceptWaveform(samples)
+                }
+            }
+            vad.flush()
+            buildList {
+                while (!vad.empty()) {
+                    val segment = vad.front()
+                    val startMs = segment.start * 1000L / TARGET_SAMPLE_RATE
+                    val endMs = (segment.start + segment.samples.size) * 1000L / TARGET_SAMPLE_RATE
+                    add(
+                        SpeechWindow(
+                            startMs = (startMs - VAD_PRE_ROLL_MS).coerceAtLeast(0L),
+                            endMs = (endMs + VAD_POST_ROLL_MS).coerceAtMost(pcmDurationMs(pcmFile))
+                        )
+                    )
+                    vad.pop()
+                }
+            }.mergeCloseWindows(maxGapMs = 0L)
+        } finally {
+            vad.release()
+        }
+    }
+
+    private suspend fun detectSpeechWindowsByAmplitude(pcmFile: File): List<SpeechWindow> {
         val windows = mutableListOf<SpeechWindow>()
         FileInputStream(pcmFile).use { input ->
             val buffer = ByteArray(TARGET_SAMPLE_RATE / 10 * 2)
@@ -275,15 +375,15 @@ open class AudioTranscriptionPreprocessor @Inject constructor(
                 windows += SpeechWindow(start, (frameOffset * 1000L) / TARGET_SAMPLE_RATE)
             }
         }
-        return windows.mergeCloseWindows()
+        return windows.mergeCloseWindows(maxGapMs = AMPLITUDE_MERGE_GAP_MS)
     }
 
-    private fun List<SpeechWindow>.mergeCloseWindows(): List<SpeechWindow> {
+    private fun List<SpeechWindow>.mergeCloseWindows(maxGapMs: Long): List<SpeechWindow> {
         if (isEmpty()) return emptyList()
         val merged = mutableListOf(first())
         drop(1).forEach { next ->
             val previous = merged.removeAt(merged.lastIndex)
-            if (next.startMs - previous.endMs <= 300L) {
+            if (next.startMs - previous.endMs <= maxGapMs) {
                 merged += previous.copy(endMs = next.endMs)
             } else {
                 merged += previous
@@ -405,13 +505,21 @@ open class AudioTranscriptionPreprocessor @Inject constructor(
     private companion object {
         const val TARGET_SAMPLE_RATE = 16_000
         const val SPEECH_PEAK_THRESHOLD = 512
+        const val VAD_WINDOW_SAMPLES = 512
+        const val VAD_PRE_ROLL_MS = 300L
+        const val VAD_POST_ROLL_MS = 700L
+        const val AMPLITUDE_MERGE_GAP_MS = 300L
         const val BUFFER_TIMEOUT_US = 10_000L
     }
+
+    private fun pcmDurationMs(file: File): Long = file.length() * 1000L / (TARGET_SAMPLE_RATE * 2L)
 }
 
 data class PreparedTranscriptionAudio(
     val sourceFile: File,
     val sourceFingerprint: String,
     val pcm16kMonoFile: File,
-    val speechWindows: List<SpeechWindow>
+    val speechWindows: List<SpeechWindow>,
+    val decodeAndResampleMs: Long = 0,
+    val speechDetectionMs: Long = 0
 )

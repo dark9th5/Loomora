@@ -1,0 +1,11 @@
+<resources>
+    <string name="editor_title">Chỉnh sửa âm thanh</string><string name="editor_undo">Hoàn tác</string><string name="editor_redo">Làm lại</string>
+    <string name="editor_not_found">Không tìm thấy bản ghi</string><string name="editor_not_found_message">Không thể tải bản ghi này để chỉnh sửa.</string><string name="editor_back">Quay lại</string>
+    <string name="editor_preserves_original">Chỉnh sửa không phá hủy giúp giữ nguyên bản ghi gốc.</string>
+    <string name="editor_preview">Xem trước chỉnh sửa</string><string name="editor_estimated_duration">Thời lượng đầu ra dự kiến: %1$d ms</string><string name="editor_preview_full">Bản xem trước dùng toàn bộ bản ghi cho tới khi áp dụng chỉnh sửa.</string><string name="editor_segment">Đoạn %1$d: %2$d–%3$d ms</string><string name="editor_recipe_invalid">Hãy điều chỉnh thao tác hiện tại trước khi xuất.</string>
+    <string name="editor_waveform">Dạng sóng thời gian</string><string name="editor_waveform_unavailable">Không có dạng sóng</string><string name="editor_waveform_message">Loomora không thể tải dạng sóng đã lưu.</string>
+    <string name="editor_selection">Khoảng đã chọn (ms)</string><string name="editor_start">Bắt đầu (ms)</string><string name="editor_end">Kết thúc (ms)</string>
+    <string name="editor_trim">Cắt theo vùng chọn</string><string name="editor_delete_range">Xóa vùng chọn</string>
+    <string name="editor_clarity">Làm rõ giọng nói</string><string name="editor_clarity_desc">Áp dụng bộ lọc thông cao và chuẩn hóa độ lớn</string>
+    <string name="editor_export">Xuất thành bản ghi mới</string><string name="editor_cancel_export">Hủy xuất</string><string name="editor_share_export">Chia sẻ bản ghi đã xuất</string>
+</resources>

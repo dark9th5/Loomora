@@ -42,7 +42,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.loomora.core.designsystem.R
 import com.loomora.core.designsystem.component.LoomoraTopAppBar
 import com.loomora.core.designsystem.component.ProBadge
 import com.loomora.core.designsystem.component.TrialUsageChip
@@ -78,7 +77,7 @@ fun SubscriptionScreen(
     Scaffold(
         topBar = {
             LoomoraTopAppBar(
-                title = stringResource(id = R.string.paywall_title),
+                title = stringResource(R.string.subscription_title),
                 onBackClick = onNavigateBack
             )
         },
@@ -108,7 +107,7 @@ fun SubscriptionScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Unlock Loomora Pro",
+                            text = stringResource(R.string.subscription_unlock),
                             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onBackground
                         )
@@ -117,7 +116,7 @@ fun SubscriptionScreen(
                         when (val status = uiState.status) {
                             is EntitlementStatus.FreeTrial -> TrialUsageChip(remainingUses = status.remainingUses)
                             is EntitlementStatus.ProActive -> ProBadge()
-                            is EntitlementStatus.Expired -> Text(text = "Trial Expired", color = MaterialTheme.colorScheme.error)
+                            is EntitlementStatus.Expired -> Text(text = stringResource(R.string.subscription_trial_expired), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -130,14 +129,14 @@ fun SubscriptionScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "100% Free Local Guarantee",
+                                text = stringResource(R.string.subscription_free_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = stringResource(id = R.string.paywall_free_note),
+                                text = stringResource(R.string.subscription_free_note),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -153,17 +152,17 @@ fun SubscriptionScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Pro Features",
+                                text = stringResource(R.string.subscription_features),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(12.dp))
 
                             val proBenefits = listOf(
-                                "Unlimited AI Transcriptions & Speaker Labels",
-                                "Smart AI Insights, Action Items & Summaries",
-                                "Advanced Non-Destructive Audio Export Formats",
-                                "Offline First & Local Privacy Preservation"
+                                stringResource(R.string.subscription_benefit_transcript),
+                                stringResource(R.string.subscription_benefit_insights),
+                                stringResource(R.string.subscription_benefit_export),
+                                stringResource(R.string.subscription_benefit_privacy)
                             )
 
                             proBenefits.forEach { benefit ->
@@ -202,7 +201,7 @@ fun SubscriptionScreen(
                     ) {
                         Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Buy Pro License on Website")
+                        Text(text = stringResource(R.string.subscription_buy_web))
                     }
                 }
 
@@ -214,7 +213,7 @@ fun SubscriptionScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Import Signed Offline License",
+                                text = stringResource(R.string.subscription_import_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -222,7 +221,7 @@ fun SubscriptionScreen(
                             OutlinedTextField(
                                 value = uiState.activationInput,
                                 onValueChange = onActivationInputChanged,
-                                label = { Text("Signed license envelope JSON") },
+                                label = { Text(stringResource(R.string.subscription_import_label)) },
                                 singleLine = false,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -240,14 +239,18 @@ fun SubscriptionScreen(
                                 } else {
                                     Icon(imageVector = Icons.Default.Key, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = "Verify License")
+                                    Text(text = stringResource(R.string.subscription_verify))
                                 }
                             }
 
-                            if (uiState.activationMessage != null) {
+                            if (uiState.activationFeedback != null) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = uiState.activationMessage,
+                                    text = when (val feedback = uiState.activationFeedback) {
+                                        is SubscriptionFeedback.Activated -> stringResource(R.string.subscription_activated, feedback.capabilityCount)
+                                        SubscriptionFeedback.Invalid -> stringResource(R.string.subscription_invalid)
+                                        null -> ""
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (uiState.isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.Bold
@@ -261,7 +264,7 @@ fun SubscriptionScreen(
                 item {
                     TextButton(onClick = onNavigateBack) {
                         Text(
-                            text = "Continue with Free Local Recording",
+                            text = stringResource(R.string.subscription_continue_free),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

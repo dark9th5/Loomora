@@ -116,12 +116,30 @@ data class InsightRevision(
     val fallbackReason: String? = null
 )
 
+enum class AiProcessingStage {
+    PREPARING_AUDIO,
+    TRANSCRIBING,
+    DIARIZING,
+    ALIGNING,
+    GENERATING_INSIGHTS,
+    OPTIONAL_ENHANCEMENT,
+    VALIDATING,
+    PUBLISHING,
+    CLEANING_UP,
+    CANCELLING,
+    RUNNING
+}
+
 sealed interface AiJobStatus {
     data object Idle : AiJobStatus
     data object VerifyingModels : AiJobStatus
     data object PreparingAudio : AiJobStatus
     data class Queued(val jobId: String) : AiJobStatus
-    data class Processing(val stage: String, val progress: Float) : AiJobStatus
+    data class Processing(
+        val stage: AiProcessingStage,
+        val overallProgress: Float,
+        val stageProgress: Float? = null
+    ) : AiJobStatus
     data class Partial(val transcript: List<TranscriptSegment>, val progress: Float) : AiJobStatus
     data object Cancelled : AiJobStatus
     data class ModelRequired(val requiredCapabilities: List<String>) : AiJobStatus
@@ -137,6 +155,7 @@ sealed interface AiJobStatus {
     data class Failed(
         val message: String,
         val isRetryable: Boolean,
-        val preservedTranscript: List<TranscriptSegment>? = null
+        val preservedTranscript: List<TranscriptSegment>? = null,
+        val stage: AiProcessingStage? = null
     ) : AiJobStatus
 }

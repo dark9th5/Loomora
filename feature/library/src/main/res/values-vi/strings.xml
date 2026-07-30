@@ -1,0 +1,36 @@
+<resources>
+    <string name="library_title">Thư viện</string>
+    <string name="library_search_hint">Tìm kiếm bản ghi</string>
+    <string name="library_empty_title">Thư viện đang trống</string>
+    <string name="library_empty_desc">Các bản ghi đã lưu sẽ xuất hiện tại đây.</string>
+    <string name="library_filter_favorites">Yêu thích</string>
+    <string name="library_filter_trash">Thùng rác</string>
+    <string name="library_storage_title">Dung lượng lưu trữ cục bộ</string>
+    <string name="library_storage_low_space_warning">Bộ nhớ trống đang thấp, có thể làm gián đoạn ghi âm hoặc xuất tệp.</string>
+    <string name="library_storage_recordings">Bản ghi: %1$s</string>
+    <string name="library_storage_exports">Bản xuất: %1$s</string>
+    <string name="library_storage_temp">Tệp tạm: %1$s</string>
+    <string name="library_storage_models">Model: %1$s</string>
+    <string name="library_storage_free">Còn trống: %1$s</string>
+    <string name="library_trash_deleted_on">Đã xóa vào %1$s</string>
+    <string name="library_trash_restore">Khôi phục</string>
+    <string name="library_trash_delete_forever">Xóa vĩnh viễn</string>
+    <string name="library_recovery_section_title">Cần xử lý phục hồi</string>
+    <string name="library_recovery_section_message">Các bản ghi này được giữ lại sau khi quá trình lưu bị gián đoạn hoặc không hợp lệ.</string>
+    <string name="library_recovery_open">Mở</string>
+    <string name="library_recovery_keep">Giữ lại</string>
+    <string name="library_recovery_delete">Xóa</string>
+    <string name="library_recovery_delete_confirm_title">Xóa tệp phục hồi?</string>
+    <string name="library_recovery_delete_confirm_message">Xóa vĩnh viễn \"%1$s\" cùng tệp cục bộ đã giữ lại?</string>
+    <string name="library_recovery_issue_missing_title">Mất tệp</string>
+    <string name="library_recovery_issue_missing_message">Bản ghi còn trong thư viện nhưng tệp gốc đã bị mất.</string>
+    <string name="library_recovery_issue_zero_byte_title">Tệp rỗng</string>
+    <string name="library_recovery_issue_zero_byte_message">Tệp bản ghi không chứa âm thanh có thể phát.</string>
+    <string name="library_recovery_issue_corrupt_title">Tệp hỏng hoặc không phát được</string>
+    <string name="library_recovery_issue_corrupt_message">Không thể xác thực tệp đã giữ lại là âm thanh có thể phát.</string>
+    <string name="library_recovery_issue_orphan_title">Tệp không có mục thư viện</string>
+    <string name="library_recovery_issue_orphan_message">Đã tìm thấy tệp bản ghi không có mục thư viện tương ứng.</string>
+    <string name="library_recovery_issue_generic_title">Lỗi phục hồi</string>
+    <string name="library_recovery_issue_generic_message">Bản ghi này cần được kiểm tra thủ công.</string>
+    <string name="action_cancel">Hủy</string>
+</resources>

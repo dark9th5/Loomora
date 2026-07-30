@@ -6,6 +6,7 @@ import android.os.Build
 import com.loomora.core.audio.model.RecorderErrorType
 import com.loomora.core.audio.model.RecordingStopResult
 import com.loomora.core.audio.model.RecorderState
+import com.loomora.core.datastore.RecordingAudioSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,7 +39,7 @@ class AudioRecordEngine @Inject constructor() {
     private var timerJob: Job? = null
     private val engineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    fun startRecording(context: Context, recordingId: String, outputFile: File): Boolean {
+    fun startRecording(context: Context, recordingId: String, outputFile: File, audioSource: RecordingAudioSource): Boolean {
         if (_state.value is RecorderState.Recording || _state.value is RecorderState.Paused) {
             return false
         }
@@ -50,26 +51,7 @@ class AudioRecordEngine @Inject constructor() {
         currentOutputFile = outputFile
 
         try {
-            val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }
-
-            recorder.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(44100)
-                setAudioEncodingBitRate(128000)
-                setAudioChannels(2)
-                setOutputFile(outputFile.absolutePath)
-                prepare()
-                start()
-            }
-
-            mediaRecorder = recorder
+            mediaRecorder = createAndStartRecorder(context, outputFile, audioSource)
             durationTracker.start()
 
             _state.value = RecorderState.Recording(recordingId, 0L)
@@ -89,6 +71,36 @@ class AudioRecordEngine @Inject constructor() {
             durationTracker.reset()
             return false
         }
+    }
+
+    private fun createAndStartRecorder(context: Context, outputFile: File, selectedSource: RecordingAudioSource): MediaRecorder {
+        var lastFailure: Exception? = null
+        for (audioSource in preferredAudioSources(selectedSource)) {
+            val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }
+            try {
+                recorder.apply {
+                    setAudioSource(audioSource)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    setAudioSamplingRate(48_000)
+                    setAudioEncodingBitRate(128_000)
+                    setAudioChannels(1)
+                    setOutputFile(outputFile.absolutePath)
+                    prepare()
+                    start()
+                }
+                return recorder
+            } catch (failure: Exception) {
+                lastFailure = failure
+                runCatching { recorder.release() }
+            }
+        }
+        throw lastFailure ?: IllegalStateException("No supported audio source")
     }
 
     fun pauseRecording() {
@@ -242,6 +254,20 @@ class AudioRecordEngine @Inject constructor() {
         mediaRecorder?.release()
         mediaRecorder = null
     }
+}
+
+internal fun preferredAudioSources(selectedSource: RecordingAudioSource): List<Int> {
+    val selected = when (selectedSource) {
+        RecordingAudioSource.MIC -> MediaRecorder.AudioSource.MIC
+        RecordingAudioSource.VOICE_RECOGNITION -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+        RecordingAudioSource.CAMCORDER -> MediaRecorder.AudioSource.CAMCORDER
+    }
+    return listOf(
+        selected,
+        MediaRecorder.AudioSource.MIC,
+        MediaRecorder.AudioSource.VOICE_RECOGNITION,
+        MediaRecorder.AudioSource.CAMCORDER
+    ).distinct()
 }
 
 internal class RecordingDurationTracker(

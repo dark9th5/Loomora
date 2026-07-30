@@ -1,0 +1,19 @@
+<resources>
+    <string name="subscription_title">Loomora Pro</string>
+    <string name="subscription_unlock">Mở khóa Loomora Pro</string>
+    <string name="subscription_trial_expired">Đã hết lượt dùng thử</string>
+    <string name="subscription_free_title">Ghi âm cục bộ luôn miễn phí</string>
+    <string name="subscription_free_note">Ghi âm, phát lại và quản lý tệp cục bộ luôn miễn phí và dùng được ngoại tuyến.</string>
+    <string name="subscription_features">Tính năng Pro</string>
+    <string name="subscription_benefit_transcript">Không giới hạn bản chép lời AI và nhãn người nói</string>
+    <string name="subscription_benefit_insights">Thông tin chính, việc cần làm và tóm tắt</string>
+    <string name="subscription_benefit_export">Xuất âm thanh nâng cao, không phá hủy bản gốc</string>
+    <string name="subscription_benefit_privacy">Xử lý cục bộ, ưu tiên ngoại tuyến</string>
+    <string name="subscription_buy_web">Mua giấy phép Pro trên trang web</string>
+    <string name="subscription_import_title">Nhập giấy phép ngoại tuyến đã ký</string>
+    <string name="subscription_import_label">JSON phong bì giấy phép đã ký</string>
+    <string name="subscription_verify">Xác minh giấy phép</string>
+    <string name="subscription_continue_free">Tiếp tục ghi âm cục bộ miễn phí</string>
+    <string name="subscription_activated">Đã kích hoạt giấy phép ngoại tuyến cho %1$d khả năng.</string>
+    <string name="subscription_invalid">Giấy phép đã ký không hợp lệ, hết hạn hoặc dành cho bản cài đặt khác.</string>
+</resources>

@@ -11,6 +11,7 @@ import com.loomora.core.model.AiJobStatus
 import com.loomora.core.model.RecordingStatus
 import com.loomora.core.model.TranscriptSegment
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.builtins.serializer
@@ -128,6 +129,48 @@ class OfflineTranscriptionPipelineTest {
 
         assertEquals(first.transcript.map { it.id }, second.transcript.map { it.id })
         assertEquals(1, database.transcriptDao().getSegmentsForRevisionSync(first.transcript.first().revisionId).size)
+    }
+
+    @Test
+    fun processing_reusesFingerprintAndPersistsSafeTimings() = runTest {
+        val source = writeWav(temporaryFolder.newFile("timed.wav"), durationMs = 1_000)
+        insertRecording(source)
+        insertReadyModel()
+        val preprocessor = CapturingPreprocessor(context)
+        val coordinator = createCoordinator(
+            engine = FakeTranscriptionEngine(),
+            preprocessor = preprocessor
+        )
+
+        coordinator.processAudio("rec-1", "file://${source.absolutePath}")
+
+        assertEquals(1, preprocessor.fingerprintCalls)
+        assertEquals(preprocessor.calculatedFingerprint, preprocessor.providedFingerprint)
+        val job = database.analysisJobDao().observeJobsForRecording("rec-1").first().single()
+        val timings = json.decodeFromString<OfflineAiStageTimings>(job.timingsJson)
+        assertTrue(timings.totalMs >= timings.fingerprintMs)
+        assertFalse(job.timingsJson.contains("Xin chao"))
+    }
+
+    @Test
+    fun queuedJob_usesExplicitTranscriptionModel() = runTest {
+        val source = writeWav(temporaryFolder.newFile("selected-model.wav"), durationMs = 1_000)
+        insertRecording(source)
+        insertReadyModel("model-light")
+        insertReadyModel("model-accurate")
+        val engine = CapturingTranscriptionEngine()
+        val coordinator = createCoordinator(engine = engine)
+        val fingerprint = AudioTranscriptionPreprocessor(context).fingerprint(source)
+        val job = AnalysisJobRepository(database.analysisJobDao(), json).enqueueIfAbsent(
+            recordingId = "rec-1",
+            sourceFingerprint = fingerprint,
+            requestedCapabilities = setOf(ModelCapability.TRANSCRIPTION),
+            options = OfflineProcessingOptions(transcriptionModelId = "model-accurate")
+        )
+
+        coordinator.processAudioForJob(job.id, "rec-1", "file://${source.absolutePath}", fingerprint)
+
+        assertEquals("model-accurate", requireNotNull(engine.lastInput).model.manifest.id)
     }
 
     @Test
@@ -293,11 +336,11 @@ class OfflineTranscriptionPipelineTest {
         )
     }
 
-    private suspend fun insertReadyModel() {
-        val modelFile = temporaryFolder.newFile("whisper.onnx").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+    private suspend fun insertReadyModel(modelId: String = "whisper-multilingual-test") {
+        val modelFile = temporaryFolder.newFile("$modelId.onnx").apply { writeBytes(byteArrayOf(1, 2, 3)) }
         database.offlineModelDao().upsertModel(
             OfflineModelEntity(
-                modelId = "whisper-multilingual-test",
+                modelId = modelId,
                 version = "1",
                 capability = ModelCapability.TRANSCRIPTION.name,
                 runtime = RuntimeKind.SHERPA_ONNX.name,
@@ -384,9 +427,25 @@ class OfflineTranscriptionPipelineTest {
 
     private class CapturingPreprocessor(context: Context) : AudioTranscriptionPreprocessor(context) {
         var lastPrepared: PreparedTranscriptionAudio? = null
+        var fingerprintCalls: Int = 0
+        var calculatedFingerprint: String? = null
+        var providedFingerprint: String? = null
+
+        override suspend fun fingerprint(sourceFile: File): String {
+            fingerprintCalls += 1
+            return super.fingerprint(sourceFile).also { calculatedFingerprint = it }
+        }
 
         override suspend fun prepare(sourceFile: File): PreparedTranscriptionAudio {
             return super.prepare(sourceFile).also { lastPrepared = it }
+        }
+
+        override suspend fun prepare(
+            sourceFile: File,
+            sourceFingerprint: String?
+        ): PreparedTranscriptionAudio {
+            providedFingerprint = sourceFingerprint
+            return super.prepare(sourceFile, sourceFingerprint).also { lastPrepared = it }
         }
     }
 

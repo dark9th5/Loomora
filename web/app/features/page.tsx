@@ -60,7 +60,7 @@ export default function FeaturesPage() {
           </div>
           <h2 className="text-3xl font-bold text-white light:text-slate-900">Non-Destructive Audio Editor</h2>
           <p className="text-slate-300 light:text-slate-600 text-sm leading-relaxed">
-            Trim specific ranges and delete selected sections while preserving the original source file. Speech-clarity DSP remains a future hardening item, not an enabled release feature.
+            Trim specific ranges and delete selected sections while preserving the original source file. Optional offline RNNoise filtering keeps the original recording and prepares a clearer copy for transcription.
           </p>
         </div>
       </div>

@@ -122,6 +122,9 @@ interface AnalysisJobDao {
     @Query("UPDATE analysis_jobs SET workRequestId = :workRequestId, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateWorkRequestId(id: String, workRequestId: String, updatedAt: Long)
 
+    @Query("UPDATE analysis_jobs SET timingsJson = :timingsJson, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateTimings(id: String, timingsJson: String, updatedAt: Long)
+
     @Query("UPDATE analysis_jobs SET status = 'CANCEL_REQUESTED', updatedAt = :updatedAt WHERE id = :id AND status NOT IN ('COMPLETED','CANCELLED','TERMINAL_FAILURE','INVALIDATED')")
     suspend fun requestCancel(id: String, updatedAt: Long)
 

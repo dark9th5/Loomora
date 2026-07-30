@@ -1,141 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App & Brand -->
     <string name="app_name">Loomora</string>
     <string name="app_tagline">Smart Voice Recorder &amp; AI Notes</string>
 
-    <!-- Navigation -->
     <string name="nav_home">Home</string>
-    <string name="nav_recorder">Recorder</string>
     <string name="nav_library">Library</string>
     <string name="nav_settings">Settings</string>
-    <string name="nav_subscription">Pro &amp; Trial</string>
 
-    <!-- Onboarding -->
-    <string name="onboarding_welcome_title">Welcome to Loomora</string>
-    <string name="onboarding_welcome_desc">Record conversations, lectures, and voice notes cleanly. Turn spoken ideas into actionable information.</string>
-    <string name="onboarding_local_first_title">Local-first &amp; Private</string>
-    <string name="onboarding_local_first_desc">Your recordings stay safely on your device. No account or internet required to record, play, and manage your audio.</string>
-    <string name="onboarding_permission_title">Microphone Access</string>
-    <string name="onboarding_permission_desc">Loomora requires microphone permission to capture audio notes cleanly when you initiate recording.</string>
-    <string name="onboarding_btn_next">Next</string>
-    <string name="onboarding_btn_get_started">Get Started</string>
-
-    <!-- Home Screen -->
-    <string name="home_title">Loomora</string>
-    <string name="home_new_recording">New Recording</string>
-    <string name="home_quick_modes">Quick Modes</string>
-    <string name="home_mode_meeting">Meeting</string>
-    <string name="home_mode_interview">Interview</string>
-    <string name="home_mode_lecture">Lecture</string>
-    <string name="home_mode_voicenote">Voice Note</string>
-    <string name="home_recent_recordings">Recent Recordings</string>
-    <string name="home_empty_title">No recordings yet</string>
-    <string name="home_empty_desc">Tap the record button below to start your first audio note.</string>
-    <string name="home_start_record_cta">Start Recording</string>
-
-    <!-- Library Screen -->
-    <string name="library_title">Library</string>
-    <string name="library_search_hint">Search recordings or tags…</string>
-    <string name="library_empty_title">Library is empty</string>
-    <string name="library_empty_desc">Your saved audio notes will appear here.</string>
-    <string name="library_filter_favorites">Favorites</string>
-    <string name="library_filter_trash">Trash</string>
-    <string name="library_storage_title">Local storage usage</string>
-    <string name="library_storage_low_space_warning">Low free storage may interrupt recording or export.</string>
-    <string name="library_storage_recordings">Recordings: %1$s</string>
-    <string name="library_storage_exports">Exports: %1$s</string>
-    <string name="library_storage_temp">Temp: %1$s</string>
-    <string name="library_storage_models">Models: %1$s</string>
-    <string name="library_storage_free">Free: %1$s</string>
-    <string name="library_trash_deleted_on">Deleted on %1$s</string>
-    <string name="library_trash_restore">Restore</string>
-    <string name="library_trash_delete_forever">Delete forever</string>
-    <string name="library_recovery_section_title">Recovery attention needed</string>
-    <string name="library_recovery_section_message">These recordings were preserved after an interrupted or invalid save. Keep them for diagnostics or delete them explicitly.</string>
-    <string name="library_recovery_open">Open</string>
-    <string name="library_recovery_keep">Keep</string>
-    <string name="library_recovery_delete">Delete</string>
-    <string name="library_recovery_delete_confirm_title">Delete recovery file?</string>
-    <string name="library_recovery_delete_confirm_message">Delete \"%1$s\" and its preserved local file permanently?</string>
-    <string name="library_recovery_issue_missing_title">Missing file</string>
-    <string name="library_recovery_issue_missing_message">The recording row exists, but the original audio file is no longer on disk.</string>
-    <string name="library_recovery_issue_zero_byte_title">Zero-byte file</string>
-    <string name="library_recovery_issue_zero_byte_message">The recording file was created but contains no playable audio data.</string>
-    <string name="library_recovery_issue_corrupt_title">Corrupt or unplayable</string>
-    <string name="library_recovery_issue_corrupt_message">The preserved file could not be validated as playable audio.</string>
-    <string name="library_recovery_issue_orphan_title">Orphan file</string>
-    <string name="library_recovery_issue_orphan_message">A recording file was found without a matching Room row, so it was preserved for inspection.</string>
-    <string name="library_recovery_issue_generic_title">Recovery issue</string>
-    <string name="library_recovery_issue_generic_message">This recording needs manual review before it can be trusted.</string>
-
-    <!-- Settings Screen -->
-    <string name="settings_title">Settings</string>
-    <string name="settings_section_appearance">Appearance</string>
-    <string name="settings_theme_title">Theme</string>
-    <string name="settings_theme_system">System Default</string>
-    <string name="settings_theme_light">Light</string>
-    <string name="settings_theme_dark">Dark</string>
-
-    <string name="settings_section_language">Language</string>
-    <string name="settings_language_title">App Language</string>
-    <string name="settings_language_english">English</string>
-    <string name="settings_language_vietnamese">Tiếng Việt</string>
-
-    <string name="settings_section_recording">Recording Quality</string>
-    <string name="settings_quality_title">Audio Quality Preset</string>
-    <string name="settings_quality_standard">Standard (Balanced)</string>
-    <string name="settings_quality_high">High Bitrate</string>
-    <string name="settings_quality_saver">Storage Saver</string>
-
-    <string name="settings_section_privacy">Privacy &amp; Data</string>
-    <string name="settings_privacy_guarantee">Local Ownership Guaranteed</string>
-    <string name="settings_privacy_guarantee_desc">Audio files never leave your device without explicit consent.</string>
-
-    <string name="settings_section_subscription">Subscription &amp; Trial</string>
-    <string name="settings_pro_status">Loomora Free Guest</string>
-    <string name="settings_upgrade_pro">View Pro Plans &amp; Trials</string>
-
-    <string name="settings_section_about">About</string>
-    <string name="settings_version_title">Version</string>
-
-    <!-- Subscription & Paywall -->
-    <string name="paywall_title">Loomora Pro</string>
-    <string name="paywall_subtitle">Unlock advanced audio enhancement, AI transcription, and smart insights.</string>
+    <string name="cd_navigate_back">Navigate back</string>
+    <string name="cd_favorite_recording">Add to favorites</string>
+    <string name="cd_unfavorite_recording">Remove from favorites</string>
+    <string name="cd_play_recording">Open recording</string>
+    <string name="cd_delete_recording">Delete recording</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_rewind_10_seconds">Rewind 10 seconds</string>
+    <string name="cd_forward_10_seconds">Forward 10 seconds</string>
+    <string name="pro_badge">PRO</string>
     <plurals name="paywall_trial_info">
         <item quantity="one">free trial use remaining</item>
         <item quantity="other">free trial uses remaining</item>
     </plurals>
-    <string name="paywall_free_note">Core recording, playback, and local file management remain 100%% free and offline forever.</string>
-
-    <!-- General Actions & States -->
-    <string name="action_cancel">Cancel</string>
-    <string name="action_save">Save</string>
-    <string name="action_retry">Retry</string>
-    <string name="marker_default_label">Marker #%1$d</string>
-    <string name="offline_banner_text">You are offline. Local recording and playback work seamlessly.</string>
-
-    <!-- Recorder -->
-    <string name="recorder_default_title">New Recording</string>
-    <string name="recorder_permission_grant">Grant Microphone Permission</string>
-    <string name="recorder_status_ready">Ready</string>
-    <string name="recorder_status_preparing">Preparing...</string>
-    <string name="recorder_status_recording">Recording</string>
-    <string name="recorder_status_paused">Paused</string>
-    <string name="recorder_status_finalizing">Finalizing...</string>
-    <string name="recorder_status_saving">Saving...</string>
-    <string name="recorder_status_saved">Saved</string>
-    <string name="recorder_status_error">Error</string>
-    <string name="recorder_action_record">Record</string>
-    <string name="recorder_action_stop_save">Stop &amp; Save</string>
-    <string name="recorder_cd_add_marker">Add marker</string>
-    <string name="recorder_cd_pause">Pause recording</string>
-    <string name="recorder_cd_resume">Resume recording</string>
-    <string name="recorder_cd_stop">Stop recording</string>
-    <string name="recorder_stop_dialog_title">Stop &amp; Save Recording?</string>
-    <string name="recorder_stop_dialog_message">Your recording session will be finalized and saved safely to your library.</string>
-    <string name="recorder_error_start_failed">Could not start recording. Check microphone access and try again.</string>
-    <string name="recorder_error_pause_failed">Could not pause recording. Your current recording is still protected.</string>
-    <string name="recorder_error_resume_failed">Could not resume recording. Your current recording is still protected.</string>
-    <string name="recorder_error_finalize_failed">Recording file could not be finalized. The original capture remains protected when possible.</string>
-    <string name="recorder_error_save_failed">Recording was captured but could not be saved to the library. Stay here and try again.</string>
 </resources>
